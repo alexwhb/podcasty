@@ -12,6 +12,7 @@ headless.
 
 ## What's The Stack?
 
-we are using the epic stack. This made the starting point a lot easier. I also
-am using ShadCn for the UI because I think it looks a lot nicer than the
-standard Radix UI theme.
+we are using the [epic stack](https://github.com/epicweb-dev/epic-stack). This
+made the starting point a lot easier. I also am using
+[Shadcn](https://ui.shadcn.com/) for the UI because I think it looks a lot nicer
+than the standard [Radix UI](https://www.radix-ui.com/) theme.
