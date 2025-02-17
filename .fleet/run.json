@@ -1,0 +1,11 @@
+{
+  "configurations": [
+    {
+      "name": "Debug App",
+      "type": "npm",
+//      "request": "launch",
+      "command": "run dev",
+//      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
