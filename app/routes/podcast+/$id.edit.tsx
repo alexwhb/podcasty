@@ -36,16 +36,9 @@ import {
 	AlertDialogTrigger,
 } from '#app/components/ui/alert-dialog'
 import { ErrorList } from '#app/components/forms.tsx'
+import { LANGUAGES } from '#app/lib/utils.ts'
 
 // --- Constants & Zod Schema
-
-const LANGUAGES = [
-	{ value: 'en', label: 'English' },
-	{ value: 'es', label: 'Spanish' },
-	{ value: 'fr', label: 'French' },
-	{ value: 'de', label: 'German' },
-	{ value: 'zh', label: 'Chinese' },
-]
 
 const PodcastEditorSchema = z.object({
 	title: z.string().min(1, 'Title is required.').max(100),
