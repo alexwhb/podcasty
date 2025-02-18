@@ -9,10 +9,11 @@ import {
 import { Info } from './+types/podcasts.$podcastId'
 import { z } from 'zod'
 import { getZodConstraint, parseWithZod } from '@conform-to/zod'
-import { Form } from 'react-router'
+import { Form, Link } from 'react-router'
 import { Input } from '#app/components/ui/input.tsx'
 import { Button } from '#app/components/ui/button.tsx'
 import { Label } from '#app/components/ui/label.tsx'
+import MinimalEditor from '#app/components/rich-text-editor.tsx'
 import {
 	Select,
 	SelectContent,
@@ -20,7 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '#app/components/ui/select.tsx'
-import { Textarea } from '#app/components/ui/textarea.tsx'
+
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -33,6 +34,8 @@ import {
 	AlertDialogTrigger,
 } from '#app/components/ui/alert-dialog.tsx'
 import { ErrorList } from '#app/components/forms.tsx'
+import { Descendant } from 'slate'
+import { Trash } from 'lucide-react'
 
 // --- Constants & Zod Schema
 const LANGUAGES = [
@@ -64,7 +67,9 @@ function DeletePodcastDialog({
 	return (
 		<AlertDialog>
 			<AlertDialogTrigger asChild>
-				<Button variant="destructive">Delete Podcast</Button>
+				<Button variant="destructive">
+					<Trash />
+				</Button>
 			</AlertDialogTrigger>
 			<AlertDialogContent>
 				<AlertDialogHeader>
@@ -114,6 +119,10 @@ export default function PodcastEditor({
 	)
 	const [tagInput, setTagInput] = useState('')
 
+	const [editorContent, setEditorContent] = useState<string>(
+		podcast?.description || '',
+	)
+
 	const [form, fields] = useForm({
 		id: 'podcast-editor',
 		constraint: getZodConstraint(PodcastEditorSchema),
@@ -157,15 +166,24 @@ export default function PodcastEditor({
 							{...getInputProps(fields.title, { type: 'text' })}
 						/>
 					</div>
-
-					{/* Description Field as a plain text area */}
+					{/* Description Field with RichTextEditor */}
 					<div>
 						<Label htmlFor="description">Description</Label>
-						<Textarea
-							id="description"
-							rows={6}
-							placeholder="Enter podcast description"
-							{...getTextareaProps(fields.description)}
+						<MinimalEditor
+							initialHTML={podcast?.description}
+							onChange={function (element: {
+								type: string
+								url?: string
+								children: Descendant[]
+							}): void {
+								throw new Error('Function not implemented.')
+							}}
+						/>
+						{/* Hidden input to submit serialized HTML */}
+						<input
+							type="hidden"
+							name="description"
+							value={editorContent} // Serialize the editor's content to HTML
 						/>
 					</div>
 
@@ -205,18 +223,18 @@ export default function PodcastEditor({
 					{/* Categories Tag Input */}
 					<div>
 						<Label htmlFor="category">Categories (Tags)</Label>
-						<div className="mt-1 flex flex-wrap gap-2 rounded-md border border-gray-300 p-2">
+						<div className="mt-1 flex flex-wrap gap-2 rounded-md border p-2">
 							{tags.map((tag, index) => (
 								<div
 									key={index}
-									className="flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-1 text-sm text-indigo-800"
+									className="flex items-center gap-1 rounded-md border px-2 text-sm"
 								>
 									<span>{tag}</span>
 									<Button
 										variant="ghost"
 										type="button"
 										onClick={() => removeTag(tag)}
-										className="p-0"
+										className=""
 									>
 										×
 									</Button>
@@ -233,24 +251,28 @@ export default function PodcastEditor({
 									}
 								}}
 								placeholder="Type tag and press Enter"
-								className="flex-1"
+								className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0"
 							/>
 						</div>
 						{/* Hidden field to submit categories as CSV */}
 						<input type="hidden" name="category" value={tags.join(',')} />
 					</div>
 
-					<Button type="submit">Save</Button>
+					<div className="flex gap-4">
+						<Button type="submit">Save</Button>
+
+						<Link to="../">
+							<Button variant="outline">Cancel</Button>
+						</Link>
+
+						{podcast && (
+							<DeletePodcastDialog verificationString={podcast.title} />
+						)}
+					</div>
+
 					<ErrorList id={form.errorId} errors={form.errors} />
 				</Form>
 			</FormProvider>
-
-			{/* Delete Podcast Section */}
-			{podcast && (
-				<div className="mt-8">
-					<DeletePodcastDialog verificationString={podcast.title} />
-				</div>
-			)}
 		</main>
 	)
 }

@@ -1,7 +1,7 @@
 // --- UI Components
 
 import { Button } from '#app/components/ui/button.tsx'
-import { Plus } from 'lucide-react'
+import { ArrowUp, Plus } from 'lucide-react'
 import { Link } from 'react-router'
 
 // Sidebar updated to receive an array of podcast objects.
@@ -21,18 +21,26 @@ export default function PodcastSidebar({
 				<nav className="flex-1 overflow-y-auto">
 					<ul className="space-y-1 p-2">
 						{podcasts.map((podcast) => (
-							<li key={podcast.id}>
-								<Button variant="ghost" className="w-full justify-start">
-									{podcast.title}
-								</Button>
-							</li>
+							<Link to={`./${podcast.id}`} prefetch="intent">
+								<li key={podcast.id}>
+									<Button variant="ghost" className="w-full justify-start">
+										{podcast.title}
+									</Button>
+								</li>
+							</Link>
 						))}
 					</ul>
 				</nav>
-				<div className="p-4">
-					<Link to="../new" relative="path">
-						<Button className="w-full">
+				<div className="flex flex-col gap-2 p-2">
+					<Link to="./new" relative="path">
+						<Button className="w-full" variant="outline">
 							<Plus className="mr-2 h-4 w-4" /> Add Podcast
+						</Button>
+					</Link>
+
+					<Link to="./import" relative="path">
+						<Button className="w-full" variant="outline">
+							<ArrowUp className="mr-2 h-4 w-4" /> Import Podcast
 						</Button>
 					</Link>
 				</div>

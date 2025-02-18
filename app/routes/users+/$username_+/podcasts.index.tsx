@@ -1,14 +1,20 @@
+// app/routes/podcasts/index.tsx
+
+import { redirect } from 'react-router'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
-import { redirect } from 'react-router'
-import { Route } from './+types/podcasts'
 
-export async function loader({ params, request }: Route.LoaderArgs) {
+export async function loader({ request }: any) {
 	const userId = await requireUserId(request)
-	const podcast = await prisma.podcast.findFirst({
+
+	// Query for the first podcast. You can limit it to one record.
+	const firstPodcast = await prisma.podcast.findFirst({
 		where: { ownerId: userId },
-		select: { id: true },
 	})
 
-	return redirect(`/users/${params.username}/podcasts/${podcast?.id}`)
+	if (firstPodcast) {
+		return redirect(`${firstPodcast.id}`)
+	} else {
+		return redirect(`new`)
+	}
 }
