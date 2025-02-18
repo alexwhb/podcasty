@@ -154,7 +154,7 @@ const deserialize = (html: string): Descendant[] => {
 /**
  * This converts our output back into HTML so we can save it to our db.
  */
-const serialize = (nodes: Descendant[]): string => {
+export const serialize = (nodes: Descendant[]): string => {
 	return nodes
 		.map((node) => {
 			if (SlateElement.isElement(node)) {
@@ -203,8 +203,12 @@ const RichTextEditor = ({
 }) => {
 	const initialValue = useMemo(() => {
 		try {
-			const parsed = deserialize(initialHTML!)
-			return sanitizeSlateData(parsed)
+			if (initialHTML) {
+				const parsed = deserialize(initialHTML!)
+				return sanitizeSlateData(parsed)
+			} else {
+				return [{ type: 'paragraph', children: [{ text: '' }] }]
+			}
 		} catch (error) {
 			console.error('Error parsing initial HTML:', error)
 			return [{ type: 'paragraph', children: [{ text: '' }] }]
@@ -272,6 +276,10 @@ const RichTextEditor = ({
 		}
 	}
 
+	if (typeof window === 'undefined') {
+		return null
+	}
+
 	return (
 		<Slate editor={editor} initialValue={value} onChange={setValue}>
 			<ToggleGroup type="multiple" className="flex justify-start gap-1 p-2">
@@ -301,7 +309,7 @@ const RichTextEditor = ({
 			</ToggleGroup>
 
 			<Editable
-				className="min-h-[200px]ounded-md border border-input bg-transparent p-4 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+				className="min-h-[200px] rounded-md border border-input bg-transparent p-4 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 				renderElement={renderElement}
 				renderLeaf={renderLeaf}
 				placeholder="Input description here..."
