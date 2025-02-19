@@ -1,5 +1,3 @@
-// --- UI Components
-
 import { Button } from '#app/components/ui/button.tsx'
 import { ArrowUp, Plus } from 'lucide-react'
 import { Link } from 'react-router'

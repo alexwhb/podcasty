@@ -41,7 +41,6 @@ import { getToast } from './utils/toast.server.ts'
 import { useOptionalUser } from './utils/user.ts'
 import logoIcon from '../public/podcasty.svg'
 
-
 export const links: Route.LinksFunction = () => {
 	return [
 		// Preload svg sprite as a resource to avoid render blocking
@@ -221,7 +220,7 @@ function App() {
 					<Outlet />
 				</div>
 
-				<div className="container flex justify-between pb-5">
+				<div className="container flex justify-end pb-5">
 					<ThemeSwitch userPreference={data.requestInfo.userPrefs.theme} />
 				</div>
 			</div>

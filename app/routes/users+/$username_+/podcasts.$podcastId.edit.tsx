@@ -1,13 +1,12 @@
-import { redirect } from '@remix-run/server-runtime'
 import { useLoaderData } from 'react-router'
-import { parseWithZod } from '@conform-to/zod'
 import { prisma } from '#app/utils/db.server.ts'
 import { Route } from './+types/podcasts.$podcastId'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import PodcastEditor from './__podcast-editor'
-import PodcastSidebar from './__podcast-sidebar'
+import { action } from './__podcast-editor.server'
+import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 
-// --- Loader & Action
+// TODO maybe load this from context?
 
 export async function loader({ params, request }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)

@@ -18,7 +18,7 @@ export default function PodcastHome() {
 	const { podcasts } = useLoaderData<typeof loader>()
 
 	return (
-		<div className="container mx-auto flex h-[calc(100vh-8rem)]">
+		<div className="container mx-auto flex h-[calc(100dvh-8rem)]">
 			<PodcastSidebar podcasts={podcasts} />
 			<Outlet />
 		</div>

@@ -2,11 +2,12 @@ import { useState } from 'react'
 
 import {
 	FormProvider,
+	getFormProps,
 	getInputProps,
 	getTextareaProps,
 	useForm,
 } from '@conform-to/react'
-import { Info } from './+types/podcasts.$podcastId'
+import { Info } from './+types/podcasts.$podcastId.edit'
 import { z } from 'zod'
 import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import { Form, Link } from 'react-router'
@@ -36,15 +37,7 @@ import {
 import { ErrorList } from '#app/components/forms.tsx'
 import { Descendant } from 'slate'
 import { Trash } from 'lucide-react'
-
-// --- Constants & Zod Schema
-const LANGUAGES = [
-	{ value: 'en', label: 'English' },
-	{ value: 'es', label: 'Spanish' },
-	{ value: 'fr', label: 'French' },
-	{ value: 'de', label: 'German' },
-	{ value: 'zh', label: 'Chinese' },
-]
+import { LANGUAGES } from '#app/lib/utils.ts'
 
 const PodcastEditorSchema = z.object({
 	title: z.string().min(1, 'Title is required.').max(100),
@@ -81,7 +74,7 @@ function DeletePodcastDialog({
 				</AlertDialogHeader>
 				<form method="post">
 					<input type="hidden" name="_action" value="delete" />
-					<div className="mt-2">
+					<div className="m-4">
 						<Input
 							name="confirmName"
 							placeholder="Podcast title"
@@ -108,8 +101,10 @@ function DeletePodcastDialog({
 
 export default function PodcastEditor({
 	podcast,
+	actionData,
 }: {
 	podcast?: Info['loaderData']['podcast']
+	actionData?: Info['actionData']
 }) {
 	const [selectedLanguage, setSelectedLanguage] = useState(
 		podcast?.language || 'en',
@@ -126,6 +121,7 @@ export default function PodcastEditor({
 	const [form, fields] = useForm({
 		id: 'podcast-editor',
 		constraint: getZodConstraint(PodcastEditorSchema),
+		lastResult: actionData?.result,
 		onValidate({ formData }) {
 			return parseWithZod(formData, { schema: PodcastEditorSchema })
 		},
@@ -155,12 +151,11 @@ export default function PodcastEditor({
 		<main className="flex-1 overflow-y-auto p-6">
 			<h1 className="mb-6 text-2xl font-bold">Edit Podcast Info</h1>
 			<FormProvider context={form.context}>
-				<Form method="post" {...form.props} className="space-y-6">
+				<Form method="POST" {...getFormProps(form)} className="space-y-6">
 					{/* Title Field */}
 					<div>
 						<Label htmlFor="title">Title</Label>
 						<Input
-							id="title"
 							autoFocus
 							placeholder="Enter podcast title"
 							{...getInputProps(fields.title, { type: 'text' })}
