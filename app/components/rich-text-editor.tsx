@@ -74,6 +74,12 @@ const sanitizeSlateData = (nodes: Descendant[]): Descendant[] => {
 		.filter(Boolean) as Descendant[] // Remove null nodes
 }
 
+const ensureHTML = (text: string): string => {
+	// Simple check: if the string doesn't contain any HTML tag, wrap it in <p> tags
+	const htmlRegex = /<\/?[a-z][\s\S]*>/i
+	return htmlRegex.test(text) ? text : `<p>${text}</p>`
+}
+
 // Function to deserialize HTML into Slate-compatible format
 const deserialize = (html: string): Descendant[] => {
 	const parser = new DOMParser()
@@ -204,7 +210,9 @@ const RichTextEditor = ({
 	const initialValue = useMemo(() => {
 		try {
 			if (initialHTML) {
-				const parsed = deserialize(initialHTML!)
+				// Make sure that the value passed to deserialize is valid HTML.
+				const processedHTML = ensureHTML(initialHTML)
+				const parsed = deserialize(processedHTML)
 				return sanitizeSlateData(parsed)
 			} else {
 				return [{ type: 'paragraph', children: [{ text: '' }] }]
@@ -220,6 +228,7 @@ const RichTextEditor = ({
 	const editor = useMemo(() => withHistory(withReact(createEditor())), [])
 
 	useEffect(() => {
+		console.log(value)
 		console.log(serialize(value))
 	}, [value])
 
