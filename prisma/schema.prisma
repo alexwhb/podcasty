@@ -216,6 +216,7 @@ model Episode {
   pubDate     DateTime
   duration    Int         // Duration in seconds
   episodeType String
+  season      Int
   episode     Int
   explicit    Boolean
   imageUrl    String
