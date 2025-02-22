@@ -210,7 +210,8 @@ const RichTextEditor = ({
 	const initialValue = useMemo(() => {
 		try {
 			if (initialHTML) {
-				// Make sure that the value passed to deserialize is valid HTML.
+				// Make sure that the value passed to deserialize is valid HTML. If it's not it will cause
+				// a lot of issues.
 				const processedHTML = ensureHTML(initialHTML)
 				const parsed = deserialize(processedHTML)
 				return sanitizeSlateData(parsed)
@@ -228,8 +229,7 @@ const RichTextEditor = ({
 	const editor = useMemo(() => withHistory(withReact(createEditor())), [])
 
 	useEffect(() => {
-		console.log(value)
-		console.log(serialize(value))
+		onChange(serialize(value))
 	}, [value])
 
 	const renderElement = useCallback(
