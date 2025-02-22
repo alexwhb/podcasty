@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import {useState} from 'react'
 
 import {
 	FormProvider,
@@ -7,13 +7,14 @@ import {
 	getTextareaProps,
 	useForm,
 } from '@conform-to/react'
-import { Info } from './+types/podcasts.$podcastId.edit'
-import { z } from 'zod'
-import { getZodConstraint, parseWithZod } from '@conform-to/zod'
-import { Form, Link } from 'react-router'
-import { Input } from '#app/components/ui/input.tsx'
-import { Button } from '#app/components/ui/button.tsx'
-import { Label } from '#app/components/ui/label.tsx'
+import {Info} from './+types/podcasts.$podcastId.edit'
+import {z} from 'zod'
+import {getZodConstraint, parseWithZod} from '@conform-to/zod'
+import {Form, Link} from 'react-router'
+import {Input} from '#app/components/ui/input.tsx'
+import {Button} from '#app/components/ui/button.tsx'
+import {Label} from '#app/components/ui/label.tsx'
+import {Spacer} from '#app/components/spacer.tsx'
 import MinimalEditor from '#app/components/rich-text-editor.tsx'
 import {
 	Select,
@@ -34,26 +35,32 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from '#app/components/ui/alert-dialog.tsx'
-import { ErrorList } from '#app/components/forms.tsx'
-import { Descendant } from 'slate'
-import { Trash } from 'lucide-react'
-import { LANGUAGES } from '#app/lib/utils.ts'
+import {Switch} from '#app/components/ui/switch.tsx'
+import {ErrorList} from '#app/components/forms.tsx'
+import {Descendant} from 'slate'
+import {Trash} from 'lucide-react'
+import {LANGUAGES} from '#app/lib/utils.ts'
 
-const PodcastEditorSchema = z.object({
+export const PodcastEditorSchema = z.object({
+	id: z.string().optional(),
 	title: z.string().min(1, 'Title is required.').max(100),
 	description: z.string().min(1, 'Description is required.').max(10000),
-	author: z.string().min(1, 'Author is required.').max(100),
+	author: z.string().min(1, 'Author is required.').max(100), // todo probablye the user's name by default
 	language: z.string(),
 	// We pass categories as a comma-separated string.
-	category: z.string().optional(),
+	category: z.string(),
+	type: z.enum(['episodic', 'serial']),
+	locked: z.boolean().default(false),
+	explicit: z.boolean().default(false),
+	baseUrl: z.string().url(),
 })
 
 export type PodcastEditor = z.infer<typeof PodcastEditorSchema>
 
 // Alert dialog for podcast deletion confirmation.
 function DeletePodcastDialog({
-	verificationString,
-}: {
+								 verificationString,
+							 }: {
 	verificationString: string
 }) {
 	const [confirmInput, setConfirmInput] = useState('')
@@ -61,7 +68,7 @@ function DeletePodcastDialog({
 		<AlertDialog>
 			<AlertDialogTrigger asChild>
 				<Button variant="destructive">
-					<Trash />
+					<Trash/>
 				</Button>
 			</AlertDialogTrigger>
 			<AlertDialogContent>
@@ -73,7 +80,7 @@ function DeletePodcastDialog({
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<form method="post">
-					<input type="hidden" name="_action" value="delete" />
+					<input type="hidden" name="_action" value="delete"/>
 					<div className="m-4">
 						<Input
 							name="confirmName"
@@ -100,15 +107,20 @@ function DeletePodcastDialog({
 }
 
 export default function PodcastEditor({
-	podcast,
-	actionData,
-}: {
+										  podcast,
+										  actionData,
+									  }: {
 	podcast?: Info['loaderData']['podcast']
 	actionData?: Info['actionData']
 }) {
 	const [selectedLanguage, setSelectedLanguage] = useState(
 		podcast?.language || 'en',
 	)
+
+	const [selectedType, setSelectedType] = useState(
+		podcast?.type || 'episodic'
+	)
+
 	const [tags, setTags] = useState<string[]>(
 		podcast?.category ? podcast.category.split(',') : [],
 	)
@@ -122,8 +134,10 @@ export default function PodcastEditor({
 		id: 'podcast-editor',
 		constraint: getZodConstraint(PodcastEditorSchema),
 		lastResult: actionData?.result,
-		onValidate({ formData }) {
-			return parseWithZod(formData, { schema: PodcastEditorSchema })
+		onValidate({formData}) {
+			const res = parseWithZod(formData, {schema: PodcastEditorSchema})
+			console.log(res)
+			return res
 		},
 		defaultValue: {
 			title: podcast?.title || '',
@@ -131,6 +145,10 @@ export default function PodcastEditor({
 			author: podcast?.author || '',
 			language: podcast?.language || 'en',
 			category: podcast?.category || '',
+			type: podcast?.type || 'episodic',
+			explicit: podcast?.explicit || false,
+			locked: podcast?.locked || false,
+			baseUrl: podcast?.baseUrl
 		},
 		shouldRevalidate: 'onBlur',
 	})
@@ -147,18 +165,32 @@ export default function PodcastEditor({
 		setTags((prev) => prev.filter((t) => t !== tag))
 	}
 
+	console.log(form.errors)
 	return (
 		<main className="flex-1 overflow-y-auto p-6">
 			<h1 className="mb-6 text-2xl font-bold">Edit Podcast Info</h1>
 			<FormProvider context={form.context}>
-				<Form method="POST" {...getFormProps(form)} className="space-y-6">
+				<Form
+					method="post"
+					{...getFormProps(form)}
+					className="space-y-6"
+				>
+					{/*
+					This hidden submit button is here to ensure that when the user hits
+					"enter" on an input field, the primary form function is submitted
+					rather than the first button in the form (which is delete/add image).
+				*/}
+					<button type="submit" className="hidden"/>
+					{podcast ? (
+						<input type="hidden" name="id" value={podcast?.id}/>
+					) : null}
 					{/* Title Field */}
 					<div>
 						<Label htmlFor="title">Title</Label>
 						<Input
 							autoFocus
 							placeholder="Enter podcast title"
-							{...getInputProps(fields.title, { type: 'text' })}
+							{...getInputProps(fields.title, {type: 'text'})}
 						/>
 					</div>
 					{/* Description Field with RichTextEditor */}
@@ -166,14 +198,9 @@ export default function PodcastEditor({
 						<Label htmlFor="description">Description</Label>
 						<MinimalEditor
 							initialHTML={podcast?.description}
-							onChange={function (element: {
-								type: string
-								url?: string
-								children: Descendant[]
-							}): void {
-								throw new Error('Function not implemented.')
-							}}
+							onChange={(html) => setEditorContent(html)}
 						/>
+
 						{/* Hidden input to submit serialized HTML */}
 						<input
 							type="hidden"
@@ -188,7 +215,18 @@ export default function PodcastEditor({
 						<Input
 							id="author"
 							placeholder="Enter author"
-							{...getInputProps(fields.author, { type: 'text' })}
+							{...getInputProps(fields.author, {type: 'text'})}
+						/>
+					</div>
+
+
+					{/* Base URL Field */}
+					<div>
+						<Label htmlFor="baseUrl">Base Podcast URL</Label>
+						<Input
+							id="baseUrl"
+							placeholder="https://mypodcast.com"
+							{...getInputProps(fields.baseUrl, {type: 'text'})}
 						/>
 					</div>
 
@@ -199,11 +237,11 @@ export default function PodcastEditor({
 							value={selectedLanguage}
 							onValueChange={(value: string) => {
 								setSelectedLanguage(value)
-								form.setFieldValue('language', value)
+								console.log(value)
 							}}
 						>
 							<SelectTrigger id="language">
-								<SelectValue placeholder="Select a language" />
+								<SelectValue placeholder="Select a language"/>
 							</SelectTrigger>
 							<SelectContent>
 								{LANGUAGES.map((lang) => (
@@ -213,6 +251,41 @@ export default function PodcastEditor({
 								))}
 							</SelectContent>
 						</Select>
+						{/* Hidden input to submit language */}
+						<input
+							type="hidden"
+							name="language"
+							value={selectedLanguage} // Serialize the editor's content to HTML
+						/>
+					</div>
+
+					{/* Podcast Type */}
+					<div>
+						<Label htmlFor="type">Type</Label>
+						<Select
+							value={selectedType}
+							onValueChange={(value: string) => {
+								setSelectedType(value)
+							}}
+						>
+							<SelectTrigger id="type">
+								<SelectValue placeholder="Select a Type"/>
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={'episodic'}>
+									Episodic
+								</SelectItem>
+								<SelectItem value={'serial'}>
+									Serial
+								</SelectItem>
+							</SelectContent>
+						</Select>
+						{/* Hidden input to submit language */}
+						<input
+							type="hidden"
+							name="type"
+							value={selectedType} // Serialize the editor's content to HTML
+						/>
 					</div>
 
 					{/* Categories Tag Input */}
@@ -250,22 +323,51 @@ export default function PodcastEditor({
 							/>
 						</div>
 						{/* Hidden field to submit categories as CSV */}
-						<input type="hidden" name="category" value={tags.join(',')} />
+						<input type="hidden" name="category" value={tags.join(',')}/>
 					</div>
 
-					<div className="flex gap-4">
-						<Button type="submit">Save</Button>
+					{/* Explicit Switch */}
+					<div className="flex items-center space-x-2 py-2">
+						<Label htmlFor="explicit">Explicit</Label>
+						<Switch
+							id="explicit"
+							defaultChecked={podcast?.explicit ?? false}
+							{...getInputProps(fields.explicit, {type: "checkbox"})}
 
+							onChange={(e) => {
+								fields.explicit.onChange(e.target.checked);
+							}}
+						/>
+						<span className="px-4"></span>
+						<Label htmlFor="locked">Is Locked</Label>
+						<Switch
+							id="locked"
+							defaultChecked={podcast?.locked ?? true}
+							{...getInputProps(fields.locked, {type: "checkbox"})}
+							onChange={(e) => {
+								fields.locked.onChange(e.target.checked);
+							}}
+						/>
+					</div>
+
+
+					<hr/>
+
+					<div className="flex gap-4 border-top">
 						<Link to="../">
 							<Button variant="outline">Cancel</Button>
 						</Link>
+						<Button type="submit">Save</Button>
+
 
 						{podcast && (
-							<DeletePodcastDialog verificationString={podcast.title} />
+							<span className="ml-auto">
+      <DeletePodcastDialog verificationString={podcast.title}/>
+    </span>
 						)}
 					</div>
 
-					<ErrorList id={form.errorId} errors={form.errors} />
+					<ErrorList id={form.errorId} errors={form.errors}/>
 				</Form>
 			</FormProvider>
 		</main>

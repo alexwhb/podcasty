@@ -125,7 +125,10 @@ CREATE TABLE "Podcast" (
     "license" TEXT NOT NULL,
     "imageTitle" TEXT NOT NULL,
     "imageLink" TEXT NOT NULL,
+    "baseUrl" TEXT NOT NULL,
     "ownerId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Podcast_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -142,10 +145,14 @@ CREATE TABLE "Episode" (
     "pubDate" DATETIME NOT NULL,
     "duration" INTEGER NOT NULL,
     "episodeType" TEXT NOT NULL,
+    "season" INTEGER NOT NULL,
     "episode" INTEGER NOT NULL,
     "explicit" BOOLEAN NOT NULL,
     "imageUrl" TEXT NOT NULL,
     "transcriptUrl" TEXT,
+    "isPublished" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
     "podcastId" TEXT NOT NULL,
     CONSTRAINT "Episode_podcastId_fkey" FOREIGN KEY ("podcastId") REFERENCES "Podcast" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
