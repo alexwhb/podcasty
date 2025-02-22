@@ -2,6 +2,8 @@ import { useLoaderData } from 'react-router'
 import { prisma } from '#app/utils/db.server.ts'
 import EpisodeEditor from './__episode-editor'
 
+export { action } from './__episode-editor.server.tsx'
+
 export async function loader({
 	params,
 }: {
@@ -22,8 +24,9 @@ export async function loader({
 	return { episode }
 }
 
-export default function EditEpisode() {
-	const { episode } = useLoaderData<typeof loader>()
-
-	return <EpisodeEditor episode={episode} />
+export default function EditEpisode({
+	loaderData,
+	actionData,
+}: Route.ComponentProps) {
+	return <EpisodeEditor episode={episode} actionData={actionData} />
 }
