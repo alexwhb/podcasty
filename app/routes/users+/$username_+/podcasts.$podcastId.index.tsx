@@ -182,7 +182,7 @@ export default function PodcastInfo() {
 	}, [handleSearch])
 
 	return (
-		<div className="mx-auto max-w-4xl overflow-y-auto p-6">
+		<div className="mx-auto max-w-4xl overflow-y-auto p-6 w-full">
 			{/* Main content */}
 			<div className="mt-4 flex flex-col gap-6 md:flex-row">
 				<div className="w-full md:w-1/3">
