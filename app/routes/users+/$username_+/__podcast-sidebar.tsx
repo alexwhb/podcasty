@@ -19,8 +19,8 @@ export default function PodcastSidebar({
 				<nav className="flex-1 overflow-y-auto">
 					<ul className="space-y-1 p-2">
 						{podcasts.map((podcast) => (
-							<Link to={`./${podcast.id}`} prefetch="intent">
-								<li key={podcast.id}>
+							<Link key={podcast.id} to={`./${podcast.id}`} prefetch="intent">
+								<li>
 									<Button variant="ghost" className="w-full justify-start">
 										{podcast.title}
 									</Button>
