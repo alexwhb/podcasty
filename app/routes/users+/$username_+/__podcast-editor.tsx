@@ -4,6 +4,7 @@ import {
 	FormProvider,
 	getFormProps,
 	getInputProps,
+	getFieldsetProps,
 	getTextareaProps,
 	useForm,
 } from '@conform-to/react'
@@ -15,6 +16,8 @@ import {Input} from '#app/components/ui/input.tsx'
 import {Button} from '#app/components/ui/button.tsx'
 import {Label} from '#app/components/ui/label.tsx'
 import {Spacer} from '#app/components/spacer.tsx'
+import { cn, getNoteImgSrc, useIsPending } from '#app/utils/misc.tsx'
+import { Icon } from '#app/components/ui/icon.tsx'
 import MinimalEditor from '#app/components/rich-text-editor.tsx'
 import {
 	Select,
@@ -42,6 +45,25 @@ import {Descendant} from 'slate'
 import {Trash} from 'lucide-react'
 import {LANGUAGES} from '#app/lib/utils.ts'
 
+
+// TODO move this out into it's own file, so we can easily reuse it.
+export const MAX_UPLOAD_SIZE = 1024 * 1024 * 10 // 10MB
+
+const ImageFieldsetSchema = z.object({
+  id: z.string().optional(),
+  file: z
+    .instanceof(File, { message: 'A valid image file is required if provided' })
+    .optional()
+    .refine(
+      (file) => !file || file.size <= MAX_UPLOAD_SIZE,
+      `File size must be less than ${MAX_UPLOAD_SIZE / (1024 * 1024)}MB`,
+    )
+    .refine(
+      (file) => !file || ['image/jpeg', 'image/png'].includes(file.type),
+      'File must be a JPEG or PNG image',
+    )
+});
+
 export const PodcastEditorSchema = z.object({
 	id: z.string().optional(),
 	title: z.string().min(1, 'Title is required.').max(100),
@@ -54,6 +76,7 @@ export const PodcastEditorSchema = z.object({
 	locked: z.boolean().default(false),
 	explicit: z.boolean().default(false),
 	baseUrl: z.string().url(),
+	image: ImageFieldsetSchema,
 })
 
 export type PodcastEditor = z.infer<typeof PodcastEditorSchema>
@@ -149,7 +172,8 @@ export default function PodcastEditor({
 			type: podcast?.type || 'episodic',
 			explicit: podcast?.explicit || false,
 			locked: podcast?.locked || false,
-			baseUrl: podcast?.baseUrl
+			baseUrl: podcast?.baseUrl,
+			image: podcast?.image ?? {},
 		},
 		shouldRevalidate: 'onBlur',
 	})
@@ -174,6 +198,7 @@ export default function PodcastEditor({
 					method="post"
 					{...getFormProps(form)}
 					className="space-y-6"
+					encType="multipart/form-data"
 				>
 					{/*
 					This hidden submit button is here to ensure that when the user hits
@@ -184,11 +209,31 @@ export default function PodcastEditor({
 					{podcast ? (
 						<input type="hidden" name="id" value={podcast?.id}/>
 					) : null}
-
+					<div>
+  <Label>Image</Label>
+					  <div className="relative">
+					    {/* If an image exists, show a remove button */}
+					    {fields.image.value && (
+					      <Button
+							  variant="destructive"
+					        className="absolute left-0 top-0 z-10"
+					        {...form.remove.getButtonProps({
+					          name: fields.image.name,
+					        })}
+					      >
+					        <span aria-hidden>
+					          <Icon name="cross-1" />
+					        </span>{' '}
+					        <span className="sr-only">Remove image</span>
+					      </Button>
+					    )}
+					    <ImageChooser meta={fields.image} />
+					  </div>
+					</div>
 					<Field
-						labelProps={{ children: 'Title' }}
+						labelProps={{children: 'Title'}}
 						inputProps={{
-							...getInputProps(fields.title, { type: 'text' }),
+							...getInputProps(fields.title, {type: 'text'}),
 							placeholder: 'Podcast title',
 						}}
 						errors={fields.title.errors}
@@ -211,9 +256,9 @@ export default function PodcastEditor({
 
 					{/* Author Field */}
 					<Field
-						labelProps={{ children: 'Author' }}
+						labelProps={{children: 'Author'}}
 						inputProps={{
-							...getInputProps(fields.author, { type: 'text' }),
+							...getInputProps(fields.author, {type: 'text'}),
 							placeholder: 'John Doe',
 						}}
 						errors={fields.author.errors}
@@ -221,9 +266,9 @@ export default function PodcastEditor({
 
 					{/* Base URL Field */}
 					<Field
-						labelProps={{ children: 'Base Podcast URL' }}
+						labelProps={{children: 'Base Podcast URL'}}
 						inputProps={{
-							...getInputProps(fields.baseUrl, { type: 'text' }),
+							...getInputProps(fields.baseUrl, {type: 'text'}),
 							placeholder: 'https://mypodcast.com',
 						}}
 						errors={fields.baseUrl.errors}
@@ -290,11 +335,11 @@ export default function PodcastEditor({
 					{/* Categories Tag Input */}
 
 					<TagField
-				      labelProps={{ children: 'Categories (Tags)' }}
-				      tags={tags}
-				      setTags={setTags}
-				      errors={fields.category.errors}
-				    />
+						labelProps={{children: 'Categories (Tags)'}}
+						tags={tags}
+						setTags={setTags}
+						errors={fields.category.errors}
+					/>
 
 					{/* Explicit Switch */}
 					<div className="flex items-center space-x-2 py-2">
@@ -340,5 +385,82 @@ export default function PodcastEditor({
 				</Form>
 			</FormProvider>
 		</main>
+	)
+}
+
+
+
+function ImageChooser({ meta }: { meta: FieldMetadata<ImageFieldset> }) {
+	const fields = meta.getFieldset()
+	const existingImage = Boolean(fields.id.initialValue)
+	const [previewImage, setPreviewImage] = useState<string | null>(
+		fields.id.initialValue ? getNoteImgSrc(fields.id.initialValue) : null,
+	)
+	const [altText, setAltText] = useState(fields.altText.initialValue ?? '')
+
+	return (
+		<fieldset {...getFieldsetProps(meta)}>
+			<div className="flex gap-3">
+				<div className="w-32">
+					<div className="relative h-32 w-32">
+						<label
+							htmlFor={fields.file.id}
+							className={cn('group absolute h-32 w-32 rounded-lg', {
+								'bg-accent opacity-40 focus-within:opacity-100 hover:opacity-100':
+									!previewImage,
+								'cursor-pointer focus-within:ring-2': !existingImage,
+							})}
+						>
+							{previewImage ? (
+								<div className="relative">
+									<img
+										src={previewImage}
+										alt={altText ?? ''}
+										className="h-32 w-32 rounded-lg object-cover"
+									/>
+									{/*{existingImage ? null : (*/}
+									{/*	<div className="pointer-events-none absolute -right-0.5 -top-0.5 rotate-12 rounded-sm bg-secondary px-2 py-1 text-xs text-secondary-foreground shadow-md">*/}
+									{/*		new*/}
+									{/*	</div>*/}
+									{/*)}*/}
+								</div>
+							) : (
+								<div className="flex h-32 w-32 items-center justify-center rounded-lg border border-muted-foreground text-4xl text-muted-foreground">
+									<Icon name="plus" />
+								</div>
+							)}
+							{existingImage ? (
+								<input {...getInputProps(fields.id, { type: 'hidden' })} />
+							) : null}
+							<input
+								aria-label="Image"
+								className="absolute left-0 top-0 z-0 h-32 w-32 cursor-pointer opacity-0"
+								onChange={(event) => {
+									const file = event.target.files?.[0]
+
+									if (file) {
+										const reader = new FileReader()
+										reader.onloadend = () => {
+											setPreviewImage(reader.result as string)
+										}
+										reader.readAsDataURL(file)
+									} else {
+										setPreviewImage(null)
+									}
+								}}
+								accept="image/*"
+								{...getInputProps(fields.file, { type: 'file' })}
+							/>
+						</label>
+					</div>
+					<div className="min-h-[12px] px-4 pb-3 pt-1">
+						<ErrorList id={fields.file.errorId} errors={fields.file.errors} />
+					</div>
+				</div>
+			</div>
+			<div className="min-h-[12px] px-4 pb-3 pt-1">
+				<ErrorList id={meta.errorId} errors={meta.errors} />
+			</div>
+		</fieldset>
 	)
 }
