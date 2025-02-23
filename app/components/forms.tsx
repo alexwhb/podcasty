@@ -11,6 +11,7 @@ import {
 import { Input } from './ui/input.tsx'
 import { Label } from './ui/label.tsx'
 import { Textarea } from './ui/textarea.tsx'
+import { Button } from './ui/button.tsx'
 
 export type ListOfErrors = Array<string | null | undefined> | null | undefined
 
@@ -48,6 +49,7 @@ export function Field({
 	const fallbackId = useId()
 	const id = inputProps.id ?? fallbackId
 	const errorId = errors?.length ? `${id}-error` : undefined
+
 	return (
 		<div className={className}>
 			<Label htmlFor={id} {...labelProps} />
@@ -57,7 +59,7 @@ export function Field({
 				aria-describedby={errorId}
 				{...inputProps}
 			/>
-			<div className="min-h-[32px] px-4 pb-3 pt-1">
+			<div className="min-h-[12px] px-4 pb-3 pt-1">
 				{errorId ? <ErrorList id={errorId} errors={errors} /> : null}
 			</div>
 		</div>
@@ -131,7 +133,7 @@ export function TextareaField({
 				aria-describedby={errorId}
 				{...textareaProps}
 			/>
-			<div className="min-h-[32px] px-4 pb-3 pt-1">
+			<div className="min-h-[12px] px-4 pb-3 pt-1">
 				{errorId ? <ErrorList id={errorId} errors={errors} /> : null}
 			</div>
 		</div>
@@ -199,4 +201,85 @@ export function CheckboxField({
 			</div>
 		</div>
 	)
+}
+
+
+export function TagField({
+  labelProps,
+  inputProps,
+  tags,
+  setTags,
+  errors,
+  className,
+}: {
+  labelProps: React.LabelHTMLAttributes<HTMLLabelElement>
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>
+  tags: string[]
+  setTags: React.Dispatch<React.SetStateAction<string[]>>
+  errors?: ListOfErrors
+  className?: string
+}) {
+  const fallbackId = useId()
+  const id = inputProps?.id ?? fallbackId
+  const errorId = errors?.length ? `${id}-error` : undefined
+  const [tagInput, setTagInput] = React.useState('')
+
+  const addTag = () => {
+    const trimmedTag = tagInput.trim()
+    if (trimmedTag && !tags.includes(trimmedTag)) {
+      setTags([...tags, trimmedTag])
+      setTagInput('')
+    }
+  }
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove))
+  }
+
+console.log(errorId)
+  return (
+    <div className={className}>
+      <Label htmlFor={id} {...labelProps} />
+      <div className="mt-1 flex flex-wrap gap-2 rounded-md border p-2">
+        {tags.map((tag, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-1 rounded-md border px-2 text-sm"
+          >
+            <span>{tag}</span>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => removeTag(tag)}
+              className=""
+            >
+              ×
+            </Button>
+          </div>
+        ))}
+        <Input
+          type="text"
+          value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              addTag()
+            }
+          }}
+          placeholder="Type tag and press Enter"
+          className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          id={id}
+          aria-invalid={errorId ? true : undefined}
+          aria-describedby={errorId}
+          {...inputProps}
+        />
+        {/* Hidden field to submit categories as CSV */}
+        <input type="hidden" name="category" value={tags.join(',')} />
+      </div>
+      <div className="min-h-[12px] px-4 pb-3 pt-1">
+        {errorId ? <ErrorList id={errorId} errors={errors} /> : null}
+      </div>
+    </div>
+  )
 }

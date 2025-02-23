@@ -24,6 +24,7 @@ import {
 	SelectValue,
 } from '#app/components/ui/select.tsx'
 
+import {Field, TagField} from '#app/components/forms.tsx'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -48,7 +49,7 @@ export const PodcastEditorSchema = z.object({
 	author: z.string().min(1, 'Author is required.').max(100), // todo probablye the user's name by default
 	language: z.string(),
 	// We pass categories as a comma-separated string.
-	category: z.string(),
+	category: z.string().min(1, 'Category is required.').max(500),
 	type: z.enum(['episodic', 'serial']),
 	locked: z.boolean().default(false),
 	explicit: z.boolean().default(false),
@@ -165,7 +166,6 @@ export default function PodcastEditor({
 		setTags((prev) => prev.filter((t) => t !== tag))
 	}
 
-	console.log(form.errors)
 	return (
 		<main className="flex-1 overflow-y-auto p-6">
 			<h1 className="mb-6 text-2xl font-bold">Edit Podcast Info</h1>
@@ -184,15 +184,15 @@ export default function PodcastEditor({
 					{podcast ? (
 						<input type="hidden" name="id" value={podcast?.id}/>
 					) : null}
-					{/* Title Field */}
-					<div>
-						<Label htmlFor="title">Title</Label>
-						<Input
-							autoFocus
-							placeholder="Enter podcast title"
-							{...getInputProps(fields.title, {type: 'text'})}
-						/>
-					</div>
+
+					<Field
+						labelProps={{ children: 'Title' }}
+						inputProps={{
+							...getInputProps(fields.title, { type: 'text' }),
+							placeholder: 'Podcast title',
+						}}
+						errors={fields.title.errors}
+					/>
 					{/* Description Field with RichTextEditor */}
 					<div>
 						<Label htmlFor="description">Description</Label>
@@ -210,25 +210,24 @@ export default function PodcastEditor({
 					</div>
 
 					{/* Author Field */}
-					<div>
-						<Label htmlFor="author">Author</Label>
-						<Input
-							id="author"
-							placeholder="Enter author"
-							{...getInputProps(fields.author, {type: 'text'})}
-						/>
-					</div>
-
+					<Field
+						labelProps={{ children: 'Author' }}
+						inputProps={{
+							...getInputProps(fields.author, { type: 'text' }),
+							placeholder: 'John Doe',
+						}}
+						errors={fields.author.errors}
+					/>
 
 					{/* Base URL Field */}
-					<div>
-						<Label htmlFor="baseUrl">Base Podcast URL</Label>
-						<Input
-							id="baseUrl"
-							placeholder="https://mypodcast.com"
-							{...getInputProps(fields.baseUrl, {type: 'text'})}
-						/>
-					</div>
+					<Field
+						labelProps={{ children: 'Base Podcast URL' }}
+						inputProps={{
+							...getInputProps(fields.baseUrl, { type: 'text' }),
+							placeholder: 'https://mypodcast.com',
+						}}
+						errors={fields.baseUrl.errors}
+					/>
 
 					{/* Language Dropdown */}
 					<div>
@@ -289,42 +288,13 @@ export default function PodcastEditor({
 					</div>
 
 					{/* Categories Tag Input */}
-					<div>
-						<Label htmlFor="category">Categories (Tags)</Label>
-						<div className="mt-1 flex flex-wrap gap-2 rounded-md border p-2">
-							{tags.map((tag, index) => (
-								<div
-									key={index}
-									className="flex items-center gap-1 rounded-md border px-2 text-sm"
-								>
-									<span>{tag}</span>
-									<Button
-										variant="ghost"
-										type="button"
-										onClick={() => removeTag(tag)}
-										className=""
-									>
-										×
-									</Button>
-								</div>
-							))}
-							<Input
-								type="text"
-								value={tagInput}
-								onChange={(e) => setTagInput(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === 'Enter') {
-										e.preventDefault()
-										addTag()
-									}
-								}}
-								placeholder="Type tag and press Enter"
-								className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0"
-							/>
-						</div>
-						{/* Hidden field to submit categories as CSV */}
-						<input type="hidden" name="category" value={tags.join(',')}/>
-					</div>
+
+					<TagField
+				      labelProps={{ children: 'Categories (Tags)' }}
+				      tags={tags}
+				      setTags={setTags}
+				      errors={fields.category.errors}
+				    />
 
 					{/* Explicit Switch */}
 					<div className="flex items-center space-x-2 py-2">
@@ -349,7 +319,6 @@ export default function PodcastEditor({
 							}}
 						/>
 					</div>
-
 
 					<hr/>
 

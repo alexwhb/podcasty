@@ -3,15 +3,6 @@ import { parseWithZod } from '@conform-to/zod'
 import { data, redirect } from 'react-router'
 import { z } from 'zod'
 
-export const EpisodeEditorSchema = z.object({
-	title: z.string().min(1, 'Title is required.').max(100),
-	description: z.string().min(1, 'Description is required.').max(10000),
-	// pubDate as a string in the desired format.
-	pubDate: z.string().min(1, 'Publish date is required.'),
-	// explicit is represented as a boolean.
-	explicit: z.boolean(),
-})
-
 export type EpisodeEditor = z.infer<typeof EpisodeEditorSchema>
 
 export async function action({
@@ -37,5 +28,5 @@ export async function action({
 			explicit,
 		},
 	})
-	return redirect(`/podcast/${params.podcastId}/episodes`)
+	return redirect(`/podcast/${params.podcastId}`)
 }
