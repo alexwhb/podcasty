@@ -1,11 +1,10 @@
-import {useState} from 'react'
+import {useState, useEffect} from 'react';
 
 import {
 	FormProvider,
 	getFormProps,
 	getInputProps,
 	getFieldsetProps,
-	getTextareaProps,
 	useForm,
 } from '@conform-to/react'
 import {Info} from './+types/podcasts.$podcastId.edit'
@@ -16,8 +15,8 @@ import {Input} from '#app/components/ui/input.tsx'
 import {Button} from '#app/components/ui/button.tsx'
 import {Label} from '#app/components/ui/label.tsx'
 import {Spacer} from '#app/components/spacer.tsx'
-import { cn, getNoteImgSrc, useIsPending } from '#app/utils/misc.tsx'
-import { Icon } from '#app/components/ui/icon.tsx'
+import {cn, getPodcastImgSrc, useIsPending} from '#app/utils/misc.tsx'
+import {Icon} from '#app/components/ui/icon.tsx'
 import MinimalEditor from '#app/components/rich-text-editor.tsx'
 import {
 	Select,
@@ -41,28 +40,29 @@ import {
 } from '#app/components/ui/alert-dialog.tsx'
 import {Switch} from '#app/components/ui/switch.tsx'
 import {ErrorList} from '#app/components/forms.tsx'
-import {Descendant} from 'slate'
 import {Trash} from 'lucide-react'
 import {LANGUAGES} from '#app/lib/utils.ts'
 
 
 // TODO move this out into it's own file, so we can easily reuse it.
-export const MAX_UPLOAD_SIZE = 1024 * 1024 * 10 // 10MB
+export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10MB as an example
 
 const ImageFieldsetSchema = z.object({
-  id: z.string().optional(),
-  file: z
-    .instanceof(File, { message: 'A valid image file is required if provided' })
-    .optional()
-    .refine(
-      (file) => !file || file.size <= MAX_UPLOAD_SIZE,
-      `File size must be less than ${MAX_UPLOAD_SIZE / (1024 * 1024)}MB`,
-    )
-    .refine(
-      (file) => !file || ['image/jpeg', 'image/png'].includes(file.type),
-      'File must be a JPEG or PNG image',
-    )
+	id: z.string().optional(),
+	file: z
+		.instanceof(File, {message: 'A valid image file is required if provided'})
+		.optional()
+		.refine(
+			(file) => !file || file.size <= MAX_UPLOAD_SIZE,
+			`File size must be less than ${MAX_UPLOAD_SIZE / (1024 * 1024)}MB`,
+		)
+		.refine(
+			(file) => !file || ['image/jpeg', 'image/png'].includes(file.type),
+			'File must be a JPEG or PNG image',
+		)
 });
+
+export type ImageFieldset = z.infer<typeof ImageFieldsetSchema>
 
 export const PodcastEditorSchema = z.object({
 	id: z.string().optional(),
@@ -173,10 +173,11 @@ export default function PodcastEditor({
 			explicit: podcast?.explicit || false,
 			locked: podcast?.locked || false,
 			baseUrl: podcast?.baseUrl,
-			image: podcast?.image ?? {},
+			image: podcast?.image
 		},
 		shouldRevalidate: 'onBlur',
 	})
+
 
 	const addTag = () => {
 		const trimmed = tagInput.trim()
@@ -210,25 +211,8 @@ export default function PodcastEditor({
 						<input type="hidden" name="id" value={podcast?.id}/>
 					) : null}
 					<div>
-  <Label>Image</Label>
-					  <div className="relative">
-					    {/* If an image exists, show a remove button */}
-					    {fields.image.value && (
-					      <Button
-							  variant="destructive"
-					        className="absolute left-0 top-0 z-10"
-					        {...form.remove.getButtonProps({
-					          name: fields.image.name,
-					        })}
-					      >
-					        <span aria-hidden>
-					          <Icon name="cross-1" />
-					        </span>{' '}
-					        <span className="sr-only">Remove image</span>
-					      </Button>
-					    )}
-					    <ImageChooser meta={fields.image} />
-					  </div>
+						<Label>Image</Label>
+						<ImageChooser meta={fields.image} form={form}/>
 					</div>
 					<Field
 						labelProps={{children: 'Title'}}
@@ -388,79 +372,90 @@ export default function PodcastEditor({
 	)
 }
 
+function ImageChooser({ meta, form }: { meta: FieldMetadata<ImageFieldset>; form: any }) {
+    const fields = meta.getFieldset();
+    const existingImageId = fields.id.initialValue;
+    const [previewImage, setPreviewImage] = useState<string | null>(
+        existingImageId ? getPodcastImgSrc(existingImageId) : null,
+    );
 
+	console.log(existingImageId, fields.id, previewImage)
 
-function ImageChooser({ meta }: { meta: FieldMetadata<ImageFieldset> }) {
-	const fields = meta.getFieldset()
-	const existingImage = Boolean(fields.id.initialValue)
-	const [previewImage, setPreviewImage] = useState<string | null>(
-		fields.id.initialValue ? getNoteImgSrc(fields.id.initialValue) : null,
-	)
-	const [altText, setAltText] = useState(fields.altText.initialValue ?? '')
+    const handleRemoveImage = () => {
+        setPreviewImage(null);
+        form.update({ name: 'image.file', value: undefined });
+        form.update({ name: 'image.id', value: undefined }); // Signal removal of existing image
+    };
 
-	return (
-		<fieldset {...getFieldsetProps(meta)}>
-			<div className="flex gap-3">
-				<div className="w-32">
-					<div className="relative h-32 w-32">
-						<label
-							htmlFor={fields.file.id}
-							className={cn('group absolute h-32 w-32 rounded-lg', {
-								'bg-accent opacity-40 focus-within:opacity-100 hover:opacity-100':
-									!previewImage,
-								'cursor-pointer focus-within:ring-2': !existingImage,
-							})}
-						>
-							{previewImage ? (
-								<div className="relative">
-									<img
-										src={previewImage}
-										alt={altText ?? ''}
-										className="h-32 w-32 rounded-lg object-cover"
-									/>
-									{/*{existingImage ? null : (*/}
-									{/*	<div className="pointer-events-none absolute -right-0.5 -top-0.5 rotate-12 rounded-sm bg-secondary px-2 py-1 text-xs text-secondary-foreground shadow-md">*/}
-									{/*		new*/}
-									{/*	</div>*/}
-									{/*)}*/}
-								</div>
-							) : (
-								<div className="flex h-32 w-32 items-center justify-center rounded-lg border border-muted-foreground text-4xl text-muted-foreground">
-									<Icon name="plus" />
-								</div>
-							)}
-							{existingImage ? (
-								<input {...getInputProps(fields.id, { type: 'hidden' })} />
-							) : null}
-							<input
-								aria-label="Image"
-								className="absolute left-0 top-0 z-0 h-32 w-32 cursor-pointer opacity-0"
-								onChange={(event) => {
-									const file = event.target.files?.[0]
+    return (
+        <fieldset {...getFieldsetProps(meta)}>
+            <div className="flex gap-3">
+                <div className="w-32">
+                    <div className="relative h-32 w-32">
+                        {/* Always render the file input */}
+                        <label
+                            htmlFor={fields.file.id}
+                            className={cn(
+                                'group absolute h-32 w-32 rounded-lg',
+                                previewImage
+                                    ? 'opacity-0' // Hide the label visually when preview is shown
+                                    : 'bg-accent opacity-40 hover:opacity-100 cursor-pointer',
+                            )}
+                        >
+                            <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-muted-foreground text-4xl text-muted-foreground">
+                                <Icon name="plus" />
+                            </div>
+                            <input
+                                aria-label="Image"
+                                className="absolute left-0 top-0 h-32 w-32 cursor-pointer opacity-0"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    console.log('Selected file:', file);
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => setPreviewImage(reader.result as string);
+                                        reader.readAsDataURL(file);
+                                    } else {
+                                        setPreviewImage(null);
+                                        form.update({ name: 'image.id', value: undefined });
+                                    }
+                                }}
+                                accept="image/*"
+                                {...getInputProps(fields.file, { type: 'file' })}
+                            />
+                        </label>
 
-									if (file) {
-										const reader = new FileReader()
-										reader.onloadend = () => {
-											setPreviewImage(reader.result as string)
-										}
-										reader.readAsDataURL(file)
-									} else {
-										setPreviewImage(null)
-									}
-								}}
-								accept="image/*"
-								{...getInputProps(fields.file, { type: 'file' })}
-							/>
-						</label>
-					</div>
-					<div className="min-h-[12px] px-4 pb-3 pt-1">
-						<ErrorList id={fields.file.errorId} errors={fields.file.errors} />
-					</div>
-				</div>
-			</div>
-			<div className="min-h-[12px] px-4 pb-3 pt-1">
-				<ErrorList id={meta.errorId} errors={meta.errors} />
-			</div>
-		</fieldset>
-	)
+                        {/* Show preview image if it exists */}
+                        {previewImage && (
+                            <div className="relative">
+                                <img
+                                    src={previewImage}
+                                    alt="Preview"
+                                    className="h-32 w-32 rounded-lg object-cover"
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute -right-2 -top-2 rounded-full bg-destructive p-1"
+                                    onClick={handleRemoveImage}
+                                >
+                                    <Icon name="cross-1" className="h-4 w-4 text-white" />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Hidden input for existing image ID only if it has a value */}
+                        {previewImage && fields.id.value ? (
+                            <input {...getInputProps(fields.id, { type: 'hidden' })} />
+                        ) : null}
+                    </div>
+                    <div className="min-h-[12px] px-4 pb-3 pt-1">
+                        <ErrorList id={fields.file.errorId} errors={fields.file.errors} />
+                    </div>
+                </div>
+            </div>
+            <div className="min-h-[12px] px-4 pb-3 pt-1">
+                <ErrorList id={meta.errorId} errors={meta.errors} />
+            </div>
+        </fieldset>
+    );
 }
