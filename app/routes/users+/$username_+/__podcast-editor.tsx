@@ -1,23 +1,21 @@
-import {useState, useEffect} from 'react';
 
 import {
 	FormProvider,
 	getFormProps,
 	getInputProps,
 	getFieldsetProps,
-	useForm,
+	useForm, type FieldMetadata,
 } from '@conform-to/react'
-import {Info} from './+types/podcasts.$podcastId.edit'
-import {z} from 'zod'
 import {getZodConstraint, parseWithZod} from '@conform-to/zod'
+import {useState} from 'react';
 import {Form, Link} from 'react-router'
-import {Input} from '#app/components/ui/input.tsx'
-import {Button} from '#app/components/ui/button.tsx'
-import {Label} from '#app/components/ui/label.tsx'
-import {Spacer} from '#app/components/spacer.tsx'
-import {cn, getPodcastImgSrc, useIsPending} from '#app/utils/misc.tsx'
-import {Icon} from '#app/components/ui/icon.tsx'
+import {z} from 'zod'
+import DeleteDialog from "#app/components/delete-dialog.tsx";
+import {Field, TagField,ErrorList} from '#app/components/forms.tsx'
 import MinimalEditor from '#app/components/rich-text-editor.tsx'
+import {Button} from '#app/components/ui/button.tsx'
+import {Icon} from '#app/components/ui/icon.tsx'
+import {Label} from '#app/components/ui/label.tsx'
 import {
 	Select,
 	SelectContent,
@@ -25,23 +23,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '#app/components/ui/select.tsx'
-
-import {Field, TagField} from '#app/components/forms.tsx'
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '#app/components/ui/alert-dialog.tsx'
 import {Switch} from '#app/components/ui/switch.tsx'
-import {ErrorList} from '#app/components/forms.tsx'
-import {Trash} from 'lucide-react'
 import {LANGUAGES} from '#app/lib/utils.ts'
+import {cn, getPodcastImgSrc} from '#app/utils/misc.tsx'
+import {type Info} from './+types/podcasts.$podcastId.edit'
 
 
 // TODO move this out into it's own file, so we can easily reuse it.
@@ -80,55 +65,6 @@ export const PodcastEditorSchema = z.object({
 })
 
 export type PodcastEditor = z.infer<typeof PodcastEditorSchema>
-
-// Alert dialog for podcast deletion confirmation.
-function DeletePodcastDialog({
-								 verificationString,
-							 }: {
-	verificationString: string
-}) {
-	const [confirmInput, setConfirmInput] = useState('')
-	return (
-		<AlertDialog>
-			<AlertDialogTrigger asChild>
-				<Button variant="destructive">
-					<Trash/>
-				</Button>
-			</AlertDialogTrigger>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-					<AlertDialogDescription>
-						This action cannot be undone. Please type{' '}
-						<strong>{verificationString}</strong> to confirm deletion.
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<form method="post">
-					<input type="hidden" name="_action" value="delete"/>
-					<div className="m-4">
-						<Input
-							name="confirmName"
-							placeholder="Podcast title"
-							value={confirmInput}
-							onChange={(e) => setConfirmInput(e.target.value)}
-						/>
-					</div>
-					<AlertDialogFooter>
-						<AlertDialogCancel asChild>
-							<Button variant="outline">Cancel</Button>
-						</AlertDialogCancel>
-						<AlertDialogAction
-							type="submit"
-							disabled={confirmInput !== verificationString}
-						>
-							Delete
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</form>
-			</AlertDialogContent>
-		</AlertDialog>
-	)
-}
 
 export default function PodcastEditor({
 										  podcast,
@@ -177,19 +113,6 @@ export default function PodcastEditor({
 		},
 		shouldRevalidate: 'onBlur',
 	})
-
-
-	const addTag = () => {
-		const trimmed = tagInput.trim()
-		if (trimmed && !tags.includes(trimmed)) {
-			setTags((prev) => [...prev, trimmed])
-			setTagInput('')
-		}
-	}
-
-	const removeTag = (tag: string) => {
-		setTags((prev) => prev.filter((t) => t !== tag))
-	}
 
 	return (
 		<main className="flex-1 overflow-y-auto p-6">
@@ -360,8 +283,8 @@ export default function PodcastEditor({
 
 						{podcast && (
 							<span className="ml-auto">
-      <DeletePodcastDialog verificationString={podcast.title}/>
-    </span>
+      							<DeleteDialog verificationString={podcast.title} placeholder="Enter podcast title"/>
+    						</span>
 						)}
 					</div>
 
@@ -372,90 +295,91 @@ export default function PodcastEditor({
 	)
 }
 
-function ImageChooser({ meta, form }: { meta: FieldMetadata<ImageFieldset>; form: any }) {
-    const fields = meta.getFieldset();
-    const existingImageId = fields.id.initialValue;
-    const [previewImage, setPreviewImage] = useState<string | null>(
-        existingImageId ? getPodcastImgSrc(existingImageId) : null,
-    );
+function ImageChooser({meta, form}: { meta: FieldMetadata<ImageFieldset>; form: any }) {
+	const fields = meta.getFieldset();
+	const existingImageId = fields.id.initialValue;
+	const [previewImage, setPreviewImage] = useState<string | null>(
+		existingImageId ? getPodcastImgSrc(existingImageId) : null,
+	);
 
 	console.log(existingImageId, fields.id, previewImage)
 
-    const handleRemoveImage = () => {
-        setPreviewImage(null);
-        form.update({ name: 'image.file', value: undefined });
-        form.update({ name: 'image.id', value: undefined }); // Signal removal of existing image
-    };
+	const handleRemoveImage = () => {
+		setPreviewImage(null);
+		form.update({name: 'image.file', value: undefined});
+		form.update({name: 'image.id', value: undefined}); // Signal removal of existing image
+	};
 
-    return (
-        <fieldset {...getFieldsetProps(meta)}>
-            <div className="flex gap-3">
-                <div className="w-32">
-                    <div className="relative h-32 w-32">
-                        {/* Always render the file input */}
-                        <label
-                            htmlFor={fields.file.id}
-                            className={cn(
-                                'group absolute h-32 w-32 rounded-lg',
-                                previewImage
-                                    ? 'opacity-0' // Hide the label visually when preview is shown
-                                    : 'bg-accent opacity-40 hover:opacity-100 cursor-pointer',
-                            )}
-                        >
-                            <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-muted-foreground text-4xl text-muted-foreground">
-                                <Icon name="plus" />
-                            </div>
-                            <input
-                                aria-label="Image"
-                                className="absolute left-0 top-0 h-32 w-32 cursor-pointer opacity-0"
-                                onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    console.log('Selected file:', file);
-                                    if (file) {
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => setPreviewImage(reader.result as string);
-                                        reader.readAsDataURL(file);
-                                    } else {
-                                        setPreviewImage(null);
-                                        form.update({ name: 'image.id', value: undefined });
-                                    }
-                                }}
-                                accept="image/*"
-                                {...getInputProps(fields.file, { type: 'file' })}
-                            />
-                        </label>
+	return (
+		<fieldset {...getFieldsetProps(meta)}>
+			<div className="flex gap-3">
+				<div className="w-32">
+					<div className="relative h-32 w-32">
+						{/* Always render the file input */}
+						<label
+							htmlFor={fields.file.id}
+							className={cn(
+								'group absolute h-32 w-32 rounded-lg',
+								previewImage
+									? 'opacity-0' // Hide the label visually when preview is shown
+									: 'bg-accent opacity-40 hover:opacity-100 cursor-pointer',
+							)}
+						>
+							<div
+								className="flex h-32 w-32 items-center justify-center rounded-lg border border-muted-foreground text-4xl text-muted-foreground">
+								<Icon name="plus"/>
+							</div>
+							<input
+								aria-label="Image"
+								className="absolute left-0 top-0 h-32 w-32 cursor-pointer opacity-0"
+								onChange={(event) => {
+									const file = event.target.files?.[0];
+									console.log('Selected file:', file);
+									if (file) {
+										const reader = new FileReader();
+										reader.onloadend = () => setPreviewImage(reader.result as string);
+										reader.readAsDataURL(file);
+									} else {
+										setPreviewImage(null);
+										form.update({name: 'image.id', value: undefined});
+									}
+								}}
+								accept="image/*"
+								{...getInputProps(fields.file, {type: 'file'})}
+							/>
+						</label>
 
-                        {/* Show preview image if it exists */}
-                        {previewImage && (
-                            <div className="relative">
-                                <img
-                                    src={previewImage}
-                                    alt="Preview"
-                                    className="h-32 w-32 rounded-lg object-cover"
-                                />
-                                <button
-                                    type="button"
-                                    className="absolute -right-2 -top-2 rounded-full bg-destructive p-1"
-                                    onClick={handleRemoveImage}
-                                >
-                                    <Icon name="cross-1" className="h-4 w-4 text-white" />
-                                </button>
-                            </div>
-                        )}
+						{/* Show preview image if it exists */}
+						{previewImage && (
+							<div className="relative">
+								<img
+									src={previewImage}
+									alt="Preview"
+									className="h-32 w-32 rounded-lg object-cover"
+								/>
+								<button
+									type="button"
+									className="absolute -right-2 -top-2 rounded-full bg-destructive p-1"
+									onClick={handleRemoveImage}
+								>
+									<Icon name="cross-1" className="h-4 w-4 text-white"/>
+								</button>
+							</div>
+						)}
 
-                        {/* Hidden input for existing image ID only if it has a value */}
-                        {previewImage && fields.id.value ? (
-                            <input {...getInputProps(fields.id, { type: 'hidden' })} />
-                        ) : null}
-                    </div>
-                    <div className="min-h-[12px] px-4 pb-3 pt-1">
-                        <ErrorList id={fields.file.errorId} errors={fields.file.errors} />
-                    </div>
-                </div>
-            </div>
-            <div className="min-h-[12px] px-4 pb-3 pt-1">
-                <ErrorList id={meta.errorId} errors={meta.errors} />
-            </div>
-        </fieldset>
-    );
+						{/* Hidden input for existing image ID only if it has a value */}
+						{previewImage && fields.id.value ? (
+							<input {...getInputProps(fields.id, {type: 'hidden'})} />
+						) : null}
+					</div>
+					<div className="min-h-[12px] px-4 pb-3 pt-1">
+						<ErrorList id={fields.file.errorId} errors={fields.file.errors}/>
+					</div>
+				</div>
+			</div>
+			<div className="min-h-[12px] px-4 pb-3 pt-1">
+				<ErrorList id={meta.errorId} errors={meta.errors}/>
+			</div>
+		</fieldset>
+	);
 }

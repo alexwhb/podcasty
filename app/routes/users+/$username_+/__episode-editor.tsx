@@ -1,93 +1,110 @@
-import { useState } from 'react'
-
-import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import {
-	FormProvider,
-	getFormProps,
-	getInputProps,
-	useForm,
+  FormProvider,
+  getFormProps,
+  getInputProps,
+  useForm,
 } from '@conform-to/react'
+import { getZodConstraint, parseWithZod } from '@conform-to/zod'
+import { format } from 'date-fns/format'
+import { CalendarIcon } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
 import { Form, Link } from 'react-router'
+import { z } from 'zod'
+import {Field} from '#app/components/forms.tsx'
+import MinimalEditor from '#app/components/rich-text-editor.tsx'
+import { Button } from '#app/components/ui/button'
+import { Calendar } from '#app/components/ui/calendar'
 import { Input } from '#app/components/ui/input'
 import { Label } from '#app/components/ui/label'
-import { Button } from '#app/components/ui/button'
-import { Switch } from '#app/components/ui/switch'
-import { Calendar } from '#app/components/ui/calendar'
-import MinimalEditor from '#app/components/rich-text-editor.tsx'
 import {
-	Popover,
-	PopoverTrigger,
-	PopoverContent,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
 } from '#app/components/ui/popover'
-import { CalendarIcon } from 'lucide-react'
-import { Descendant } from 'slate'
-
-import { Info } from './+types/podcasts.$podcastId.episode.$episodeId.edit'
-import { z } from 'zod'
-import { format } from 'date-fns/format'
+import { Switch } from '#app/components/ui/switch'
+import DeleteDialog from "#app/components/delete-dialog.tsx";
 
 export const EpisodeEditorSchema = z.object({
-	title: z.string().min(1, 'Title is required.').max(100),
-	description: z.string().min(1, 'Description is required.').max(4000),
-	// pubDate as a string in the desired format.
-	pubDate: z.string().min(1, 'Publish date is required.'),
-
-	season: z.number().optional(),
-
-	episode: z.number().optional(),
-
-	// explicit is represented as a boolean.
-	explicit: z.boolean(),
+  title: z.string().min(1, 'Title is required.').max(100),
+  description: z.string().min(1, 'Description is required.').max(4000),
+  pubDate: z.string().min(1, 'Publish date is required.'),
+  season: z.number().optional(),
+  episode: z.number().optional(),
+  explicit: z.boolean(),
 })
 
 export default function EpisodeEditor({
-	episode,
-}: {
-	episode?: Info['loaderData']['podcast']
+  episode,
+  actionData,
 }) {
-	//     actionData?: Info['actionData']
+  // Memoize the initial date to avoid recalculation on re-renders
+  const initialDate = useMemo(
+    () => (episode?.pubDate ? new Date(episode.pubDate) : new Date()),
+    [episode?.pubDate]
+  )
 
-	console.log(typeof episode.pubDate)
+  const [selectedDate, setSelectedDate] = useState(initialDate)
 
-	// const { podcastId } = useParams()
-	// const actionData = useActionData()
+  // Memoize the formatted date
+  const formattedDate = useMemo(
+    () => format(selectedDate, 'dd-MM-yyyy HH:mm:ss'),
+    [selectedDate]
+  )
 
-	const [form, fields] = useForm({
-		id: 'episode-editor',
-		constraint: getZodConstraint(EpisodeEditorSchema),
-		onValidate({ formData }) {
-			return parseWithZod(formData, { schema: EpisodeEditorSchema })
-		},
-		defaultValue: {
-			title: episode.title,
-			description: episode.description,
-			// We convert the backend value into our desired string format.
-			pubDate: format(new Date(episode.pubDate), 'dd-MM-yyyy HH:mm:ss'),
-			explicit: episode.explicit,
-		},
-		shouldRevalidate: 'onBlur',
-	})
+  // Memoize default values to prevent unnecessary recalculations
+  const defaultValues = useMemo(
+    () => ({
+      title: episode?.title || '',
+      description: episode?.description || '',
+      pubDate: episode?.pubDate
+        ? format(new Date(episode.pubDate), 'MM-dd-yyyy HH:mm:ss')
+        : format(new Date(), 'MM-dd-yyyy HH:mm:ss'),
+      explicit: episode?.explicit || false,
+      season: episode?.season,
+      episode: episode?.episode,
+    }),
+    [episode]
+  )
 
-	// Local state for the publish date as a Date object.
-	const initialDate = new Date(episode.pubDate)
-	const [selectedDate, setSelectedDate] = useState<Date>(initialDate)
+  const [form, fields] = useForm({
+    id: 'episode-editor',
+    constraint: getZodConstraint(EpisodeEditorSchema),
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: EpisodeEditorSchema })
+    },
+    lastResult: actionData?.result,
+    defaultValue: defaultValues,
+    shouldRevalidate: 'onBlur',
+  })
 
-	// Format function for display and submission.
-	const formattedDate = format(selectedDate, 'dd-MM-yyyy HH:mm:ss')
+  const [editorContent, setEditorContent] = useState(episode?.description || '')
 
-	return (
+  // Memoize the editor change handler
+  const handleEditorChange = useCallback((html) => {
+    setEditorContent(html)
+  }, [])
+
+  // Memoize the date selection handler
+  const handleDateSelect = useCallback((date) => {
+    if (date) {
+      setSelectedDate(date)
+    }
+  }, [])
+
+  return (
 		<main className="flex-1 overflow-y-auto p-6">
 			<h1 className="mb-4 text-2xl font-bold">Edit Episode</h1>
 			<FormProvider context={form.context}>
 				<Form method="POST" {...getFormProps(form)} className="space-y-6">
 					{/* Title Field */}
 					<div>
-						<Label htmlFor="title">Title</Label>
-						<Input
-							autoFocus
-							placeholder="Enter episode title"
-							{...getInputProps(fields.title, { type: 'text' })}
-							className="mt-1 block w-full"
+						<Field
+							labelProps={{ children: 'Title' }}
+							inputProps={{
+								...getInputProps(fields.title, { type: 'text' }),
+								placeholder: 'Episode title',
+							}}
+							errors={fields.title.errors}
 						/>
 					</div>
 
@@ -96,14 +113,9 @@ export default function EpisodeEditor({
 						<Label htmlFor="description">Description</Label>
 						<MinimalEditor
 							initialHTML={episode?.description}
-							onChange={function (element: {
-								type: string
-								url?: string
-								children: Descendant[]
-							}): void {
-								throw new Error('Function not implemented.')
-							}}
+							onChange={handleEditorChange}
 						/>
+						<input type="hidden" name="description" value={editorContent} />
 					</div>
 
 					{/* Publish Date Field using Calendar with Popover */}
@@ -126,16 +138,11 @@ export default function EpisodeEditor({
 								<Calendar
 									mode="single"
 									selected={selectedDate}
-									onSelect={(date: Date | undefined) => {
-										if (date) {
-											setSelectedDate(date)
-										}
-									}}
+									onSelect={handleDateSelect}
 									initialFocus
 								/>
 							</PopoverContent>
 						</Popover>
-						{/* Hidden input for pubDate */}
 						<input type="hidden" name="pubDate" value={formattedDate} />
 					</div>
 
@@ -150,10 +157,19 @@ export default function EpisodeEditor({
 
 					{/* Action Buttons */}
 					<div className="flex space-x-4">
-						<Button type="submit">Save Changes</Button>
+						<Button type="submit">Save</Button>
 						<Link to={`../../`}>
 							<Button variant="outline">Cancel</Button>
 						</Link>
+
+						{episode && (
+							<span className="ml-auto">
+								<DeleteDialog
+									verificationString={episode?.title}
+									placeholder='Enter podcast title'
+								/>
+							</span>
+						)}
 					</div>
 				</Form>
 			</FormProvider>
