@@ -13,6 +13,33 @@ export function getNoteImgSrc(imageId: string) {
 	return `/resources/note-images/${imageId}`
 }
 
+
+export function getPodcastImgSrc(imageId: string, updatedAt?: Date | string | null) {
+  const timestamp = getNumericTimestamp(updatedAt);
+  return `/resources/podcast-image/${imageId}?t=${timestamp}`;
+}
+
+/**
+ * Converts various timestamp formats to a numeric timestamp (milliseconds since epoch)
+ * Handles Date objects, ISO strings, and provides fallback to current time
+ */
+export function getNumericTimestamp(timestamp?: Date | string | null): number {
+  if (!timestamp) {
+    return Date.now();
+  }
+
+  if (timestamp instanceof Date) {
+    return timestamp.getTime();
+  }
+
+  if (typeof timestamp === 'string') {
+    return new Date(timestamp).getTime();
+  }
+
+  return Date.now();
+}
+
+
 export function getErrorMessage(error: unknown) {
 	if (typeof error === 'string') return error
 	if (
