@@ -13,6 +13,7 @@ import { Button } from '#app/components/ui/button.tsx'
 import PodcastEpisodes from '#app/components/podcast-episodes' // Import the PodcastEpisodes component
 import { useCallback, useEffect, useState } from 'react'
 import { Spacer } from '#app/components/spacer.tsx'
+import { getPodcastImgSrc } from '#app/utils/misc.tsx'
 
 const PAGE_SIZE = 10
 
@@ -30,6 +31,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 	// Fetch the podcast.
 	const podcast = await prisma.podcast.findUnique({
 		where: { id: params.podcastId, ownerId: userId },
+		include: {
+    		image: true,
+  		},
 	})
 
 	if (!podcast) {
@@ -187,11 +191,11 @@ export default function PodcastInfo() {
 			<div className="mt-4 flex flex-col gap-6 md:flex-row">
 				<div className="w-full md:w-1/3">
 					<img
-						src="https://placehold.co/300"
+						src={podcast?.image?.id  ? getPodcastImgSrc(podcast?.image?.id, podcast?.image?.updatedAt) : "https://placehold.co/300"}
 						alt="Podcast Cover"
-						width={300}
-						height={300}
-						className="w-full rounded-lg shadow-lg"
+						width={250}
+						height={250}
+						className="w-full rounded-lg shadow-lg h-[250px] overflow-hidden object-cover"
 					/>
 				</div>
 				<div className="w-full space-y-4 md:w-2/3">

@@ -101,7 +101,7 @@ export default function PodcastEpisodes({
 	}
 
 	return (
-		<div className="mx-auto max-w-4xl space-y-6 p-6">
+		<div className="mx-auto max-w-4xl space-y-6">
 			<h1 className="mb-8 text-3xl font-bold">Episodes</h1>
 
 			{/* Search and Sort Controls */}
