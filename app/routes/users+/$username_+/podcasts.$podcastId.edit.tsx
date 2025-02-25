@@ -10,6 +10,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)
 	const podcast = await prisma.podcast.findUnique({
 		where: { id: params.podcastId, ownerId: userId },
+		include: {
+    		image: true,
+  		},
 	})
 
 	if (!podcast) {
