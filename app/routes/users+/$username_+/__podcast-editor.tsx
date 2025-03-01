@@ -11,7 +11,7 @@ import {useState} from 'react';
 import {Form, Link} from 'react-router'
 import {z} from 'zod'
 import DeleteDialog from "#app/components/delete-dialog.tsx";
-import {Field, TagField,ErrorList} from '#app/components/forms.tsx'
+import { Field, TagField, ErrorList, MinimalEditorField } from '#app/components/forms.tsx'
 import MinimalEditor from '#app/components/rich-text-editor.tsx'
 import {Button} from '#app/components/ui/button.tsx'
 import {Icon} from '#app/components/ui/icon.tsx'
@@ -145,21 +145,15 @@ export default function PodcastEditor({
 						}}
 						errors={fields.title.errors}
 					/>
-					{/* Description Field with RichTextEditor */}
-					<div>
-						<Label htmlFor="description">Description</Label>
-						<MinimalEditor
-							initialHTML={podcast?.description}
-							onChange={(html) => setEditorContent(html)}
-						/>
 
-						{/* Hidden input to submit serialized HTML */}
-						<input
-							type="hidden"
-							name="description"
-							value={editorContent} // Serialize the editor's content to HTML
-						/>
-					</div>
+					<MinimalEditorField
+						labelProps={{ children: "Description", htmlFor: "description" }}
+						initialHTML={podcast?.description}
+						onChange={(html) => {
+							// Any additional logic you need when the editor content changes
+						}}
+						errors={fields?.description?.errors}
+					/>
 
 					{/* Author Field */}
 					<Field
