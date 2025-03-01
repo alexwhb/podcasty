@@ -170,74 +170,90 @@ model Connection {
 }
 
 model Podcast {
-  id             String       @id @default(cuid())
-  title          String
-  link           String
-  description    String
-  generator      String
-  lastBuildDate  DateTime
-  language       String
-  copyright      String
-  author         String
-  explicit       Boolean
-  type           String
-  category       String
-  guid           String
-  locked         Boolean
-  license        String
-  baseUrl        String
+  id            String   @id @default(cuid())
+  title         String
+  link          String
+  description   String
+  generator     String
+  lastBuildDate DateTime
+  language      String
+  copyright     String
+  author        String
+  explicit      Boolean
+  type          String
+  category      String
+  guid          String
+  locked        Boolean
+  license       String
+  baseUrl       String
 
-  owner          User         @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  ownerId        String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  image          PodcastImage?
+  image PodcastImage?
+
+  episodes Episode[]
 
   // non-unique foreign key index
   @@index([ownerId])
-
-  episodes       Episode[]
 }
 
 model PodcastImage {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   contentType String
   blob        Bytes
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  podcast   Podcast   @relation(fields: [podcastId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  podcastId String    @unique
+  podcast   Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  podcastId String  @unique
 
   @@index([podcastId])
 }
 
 model Episode {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   title       String
   description String
-  link        String
-  audioUrl    String      // Previously "enclosureUrl"
-  audioSize   Int         // Previously "enclosureLength" (in bytes)
-  audioType   String      // Previously "enclosureType" (e.g., "audio/mpeg")
-  guid        String
-  pubDate     DateTime
-  duration    Int         // Duration in seconds
-  episodeType String
-  season      Int
-  episode     Int
-  explicit    Boolean
-  imageUrl    String
+
+  // todo add these back. 
+  link          String
+  audioUrl      String // Previously "enclosureUrl"
+  audioSize     Int // Previously "enclosureLength" (in bytes)
+  audioType     String // Previously "enclosureType" (e.g., "audio/mpeg")
+  guid          String
+  pubDate       DateTime
+  duration      Int // Duration in seconds
+  episodeType   String
+  season        Int?
+  episode       Int?
+  explicit      Boolean  @default(false)
   transcriptUrl String?
-  isPublished  Boolean @default(false)
+  isPublished   Boolean  @default(false)
+
+  image EpisodeImage?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-
   podcast   Podcast @relation(fields: [podcastId], references: [id])
   podcastId String
+}
+
+model EpisodeImage {
+  id          String @id @default(cuid())
+  contentType String
+  blob        Bytes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  episodeId String  @unique
+
+  @@index([episodeId])
 }
