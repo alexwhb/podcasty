@@ -1,6 +1,6 @@
-import { prisma } from '#app/utils/db.server.ts'
-import { Route } from './+types/podcasts.$podcastId.edit'
 import { requireUserId } from '#app/utils/auth.server.ts'
+import { prisma } from '#app/utils/db.server.ts'
+import { type Route } from './+types/podcasts.$podcastId.edit'
 import PodcastEditor from './__podcast-editor'
 
 export { action } from './__podcast-editor.server.tsx'

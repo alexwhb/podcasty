@@ -1,4 +1,3 @@
-
 import {
 	FormProvider,
 	getFormProps,
@@ -12,7 +11,6 @@ import {Form, Link} from 'react-router'
 import {z} from 'zod'
 import DeleteDialog from "#app/components/delete-dialog.tsx";
 import { Field, TagField, ErrorList, MinimalEditorField } from '#app/components/forms.tsx'
-import MinimalEditor from '#app/components/rich-text-editor.tsx'
 import {Button} from '#app/components/ui/button.tsx'
 import {Icon} from '#app/components/ui/icon.tsx'
 import {Label} from '#app/components/ui/label.tsx'

@@ -1,7 +1,7 @@
+import { Outlet, useLoaderData } from 'react-router'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
-import { Outlet, useLoaderData } from 'react-router'
-import { Route } from './+types/podcasts.new'
+import { type Route } from './+types/podcasts.new'
 import PodcastSidebar from './__podcast-sidebar'
 
 export async function loader({ request }: Route.LoaderArgs) {

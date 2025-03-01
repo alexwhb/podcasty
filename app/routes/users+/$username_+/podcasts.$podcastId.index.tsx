@@ -1,23 +1,21 @@
-import { prisma } from '#app/utils/db.server.ts'
-import { Route } from './+types/podcasts.$podcastId'
-import { requireUserId } from '#app/utils/auth.server.ts'
+import { PencilIcon } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import {
 	Link,
 	useLoaderData,
 	useSearchParams,
-	useNavigate,
 	useFetcher,
 } from 'react-router'
-import { PencilIcon } from 'lucide-react'
-import { Button } from '#app/components/ui/button.tsx'
 import PodcastEpisodes from '#app/components/podcast-episodes' // Import the PodcastEpisodes component
-import { useCallback, useEffect, useState } from 'react'
 import { Spacer } from '#app/components/spacer.tsx'
+import { Button } from '#app/components/ui/button.tsx'
+import { requireUserId } from '#app/utils/auth.server.ts'
+import { prisma } from '#app/utils/db.server.ts'
 import { getPodcastImgSrc } from '#app/utils/misc.tsx'
+import { type Route } from './+types/podcasts.$podcastId'
 
 const PAGE_SIZE = 10
 
-// --- Loader & Action
 
 export async function loader({ params, request }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)

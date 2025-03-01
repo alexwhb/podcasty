@@ -1,14 +1,14 @@
-import { json } from '@remix-run/server-runtime'
+import { data } from '@remix-run/server-runtime'
 import fetch from 'node-fetch'
+import { Form } from 'react-router'
 import { parseStringPromise } from 'xml2js'
+import { Button } from '#app/components/ui/button.tsx'
+import { Input } from '#app/components/ui/input.tsx'
+import { Label } from '#app/components/ui/label.tsx'
+import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 
-import { requireUserId } from '#app/utils/auth.server.ts'
-import { Label } from '#app/components/ui/label.tsx'
-import { Input } from '#app/components/ui/input.tsx'
-import { Button } from '#app/components/ui/button.tsx'
-import { Form } from 'react-router'
-import { Route } from './+types/podcasts.index'
+import { type Route } from './+types/podcasts.index'
 
 export async function action({ request }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)
@@ -18,7 +18,7 @@ export async function action({ request }: Route.LoaderArgs) {
 	console.log(rssUrl)
 
 	if (!rssUrl) {
-		return json({ error: 'RSS URL is required' }, { status: 400 })
+		return data({ error: 'RSS URL is required' }, { status: 400 })
 	}
 
 	try {
@@ -94,15 +94,15 @@ export async function action({ request }: Route.LoaderArgs) {
 			})
 		}
 
-		return json({ success: true, podcastId: podcast.id })
+		return data({ success: true, podcastId: podcast.id })
 	} catch (error) {
 		console.error('Error importing RSS feed:', error)
-		return json({ error: error.message }, { status: 500 })
+		return data({ error: error.message }, { status: 500 })
 	}
 }
 
 export async function loader() {
-	return json({})
+	return data({})
 }
 
 export default function ImportPodcast() {

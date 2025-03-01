@@ -6,7 +6,7 @@ import {
 } from '@conform-to/react'
 import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import { format } from 'date-fns/format'
-import { CalendarIcon, MinusIcon, PlusIcon } from 'lucide-react'
+import { CalendarIcon } from 'lucide-react'
 import { useState, useMemo, useCallback } from 'react'
 import { Form, Link } from 'react-router'
 import { z } from 'zod'

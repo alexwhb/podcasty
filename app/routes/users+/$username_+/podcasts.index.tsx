@@ -1,5 +1,3 @@
-// app/routes/podcasts/index.tsx
-
 import { redirect } from 'react-router'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
