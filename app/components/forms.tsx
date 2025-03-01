@@ -1,7 +1,9 @@
 import { useInputControl } from '@conform-to/react'
 import { REGEXP_ONLY_DIGITS_AND_CHARS, type OTPInputProps } from 'input-otp'
 import React, { useId } from 'react'
-import { Checkbox, type CheckboxProps } from './ui/checkbox.tsx'
+import MinimalEditor from './rich-text-editor.tsx'
+import { Button } from './ui/button.tsx'
+import { Checkbox } from './ui/checkbox.tsx'
 import {
 	InputOTP,
 	InputOTPGroup,
@@ -11,8 +13,7 @@ import {
 import { Input } from './ui/input.tsx'
 import { Label } from './ui/label.tsx'
 import { Textarea } from './ui/textarea.tsx'
-import { Button } from './ui/button.tsx'
-
+import { NumberInput } from '#app/components/ui/number-input.tsx'
 export type ListOfErrors = Array<string | null | undefined> | null | undefined
 
 export function ErrorList({
@@ -65,6 +66,8 @@ export function Field({
 		</div>
 	)
 }
+
+
 
 export function OTPField({
 	labelProps,
@@ -282,4 +285,108 @@ console.log(errorId)
       </div>
     </div>
   )
+}
+
+export function MinimalEditorField({
+																		 labelProps,
+																		 editorProps,
+																		 initialHTML,
+																		 onChange,
+																		 errors,
+																		 className,
+																	 }: {
+	labelProps: React.LabelHTMLAttributes<HTMLLabelElement>
+	editorProps?: React.HTMLAttributes<HTMLDivElement>
+	initialHTML?: string
+	onChange: (html: string) => void
+	errors?: ListOfErrors
+	className?: string
+}) {
+	const fallbackId = useId()
+	const id = editorProps?.id ?? fallbackId
+	const errorId = errors?.length ? `${id}-error` : undefined
+	const [editorContent, setEditorContent] = React.useState(initialHTML || '')
+
+	// Handle editor content changes
+	const handleEditorChange = (html: string) => {
+		setEditorContent(html)
+		onChange(html)
+	}
+
+	return (
+		<div className={className}>
+			<Label htmlFor={id} {...labelProps} />
+			<div
+				id={id}
+				aria-invalid={errorId ? true : undefined}
+				aria-describedby={errorId}
+				{...editorProps}
+			>
+				<MinimalEditor
+					initialHTML={initialHTML}
+					onChange={handleEditorChange}
+				/>
+			</div>
+
+			{/* Hidden input to submit serialized HTML */}
+			<input
+				type="hidden"
+				name={labelProps.htmlFor?.toString().toLowerCase() || 'editor-content'}
+				value={editorContent}
+			/>
+
+			<div className="min-h-[12px] px-4 pb-3 pt-1">
+				{errorId ? <ErrorList id={errorId} errors={errors} /> : null}
+			</div>
+		</div>
+	)
+}
+
+export function NumberField({
+															labelProps,
+															inputProps,
+															value,
+															onChange,
+															errors,
+															className,
+															min,
+															max,
+															step,
+															controls = true,
+														}: {
+	labelProps: React.LabelHTMLAttributes<HTMLLabelElement>
+	inputProps?: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type' | 'min' | 'max' | 'step'>
+	value: number
+	onChange: (value: number) => void
+	min?: number
+	max?: number
+	step?: number
+	controls?: boolean
+	errors?: ListOfErrors
+	className?: string
+}) {
+	const fallbackId = useId()
+	const id = inputProps?.id ?? fallbackId
+	const errorId = errors?.length ? `${id}-error` : undefined
+
+	return (
+		<div className={className}>
+			<Label htmlFor={id} {...labelProps} />
+			<NumberInput
+				id={id}
+				value={value}
+				onChange={onChange}
+				min={min}
+				max={max}
+				step={step}
+				controls={controls}
+				aria-invalid={errorId ? true : undefined}
+				aria-describedby={errorId}
+				{...inputProps}
+			/>
+			<div className="min-h-[12px] px-4 pb-3 pt-1">
+				{errorId ? <ErrorList id={errorId} errors={errors} /> : null}
+			</div>
+		</div>
+	)
 }
