@@ -257,3 +257,20 @@ model EpisodeImage {
 
   @@index([episodeId])
 }
+
+model Upload {
+  id             String        @id
+  fileName       String
+  totalChunks    Int
+  uploadedChunks UploadChunk[]
+  updatedAt      DateTime      @updatedAt // Tracks last update
+}
+
+model UploadChunk {
+  id         Int    @id @default(autoincrement())
+  uploadId   String
+  chunkIndex Int
+  upload     Upload @relation(fields: [uploadId], references: [id])
+
+  @@unique([uploadId, chunkIndex])
+}
