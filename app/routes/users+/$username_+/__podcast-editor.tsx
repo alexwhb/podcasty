@@ -24,7 +24,7 @@ import {
 import {Switch} from '#app/components/ui/switch.tsx'
 import {LANGUAGES} from '#app/lib/utils.ts'
 import {cn, getPodcastImgSrc} from '#app/utils/misc.tsx'
-import {type Info} from './+types/podcasts.$podcastId.edit'
+import {type Info} from './+types/podcasts.$podcastId.new'
 
 
 // TODO move this out into it's own file, so we can easily reuse it.
@@ -62,7 +62,7 @@ export const PodcastEditorSchema = z.object({
 	image: ImageFieldsetSchema,
 })
 
-export type PodcastEditor = z.infer<typeof PodcastEditorSchema>
+// export type PodcastEditor = z.infer<typeof PodcastEditorSchema>
 
 export default function PodcastEditor({
 										  podcast,
@@ -81,11 +81,6 @@ export default function PodcastEditor({
 
 	const [tags, setTags] = useState<string[]>(
 		podcast?.category ? podcast.category.split(',') : [],
-	)
-	const [tagInput, setTagInput] = useState('')
-
-	const [editorContent, setEditorContent] = useState<string>(
-		podcast?.description || '',
 	)
 
 	const [form, fields] = useForm({
