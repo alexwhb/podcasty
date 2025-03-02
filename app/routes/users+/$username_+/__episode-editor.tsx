@@ -26,6 +26,8 @@ import {
 	PopoverContent,
 } from '#app/components/ui/popover'
 import { Switch } from '#app/components/ui/switch'
+import {type Info} from './+types/podcasts.$podcastId.episode.$episodeId.new'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#app/components/ui/select.tsx'
 
 export const EpisodeEditorSchema = z.object({
 	title: z.string().min(1, 'Title is required.').max(100),
@@ -34,9 +36,13 @@ export const EpisodeEditorSchema = z.object({
 	season: z.number().optional(),
 	episode: z.number().optional(),
 	explicit: z.boolean().default(false),
+	isPublished: z.boolean().default(false),
 })
 
-export default function EpisodeEditor({ episode, actionData }) {
+export default function EpisodeEditor({ episode, actionData }: {
+	episode?: Info['loaderData']['episode']
+	actionData?: Info['actionData']
+}) {
 	// Memoize the initial date to avoid recalculation on re-renders
 	const initialDate = useMemo(
 		() => (episode?.pubDate ? new Date(episode.pubDate) : new Date()),
@@ -58,6 +64,8 @@ export default function EpisodeEditor({ episode, actionData }) {
 		[selectedDate],
 	)
 
+	const [selectedType, setSelectedType] = useState(episode?.type || 'full')
+
 	// Memoize default values to prevent unnecessary recalculations
 	const defaultValues = useMemo(
 		() => ({
@@ -70,6 +78,7 @@ export default function EpisodeEditor({ episode, actionData }) {
 			explicit: episode?.explicit || false,
 			season: episode?.season,
 			episode: episode?.episode,
+			isPublished: episode?.isPublished || false,
 		}),
 		[episode],
 	)
@@ -88,7 +97,7 @@ export default function EpisodeEditor({ episode, actionData }) {
 	})
 
 	// Memoize the date selection handler
-	const handleDateSelect = useCallback((date) => {
+	const handleDateSelect = useCallback((date: Date | undefined) => {
 		if (date) {
 			setSelectedDate(date)
 		}
@@ -142,6 +151,39 @@ export default function EpisodeEditor({ episode, actionData }) {
 						/>
 					</div>
 
+
+					{/* Podcast Type */}
+					<div>
+						<Label htmlFor="type">Type</Label>
+						<Select
+							value={selectedType}
+							onValueChange={(value: string) => {
+								setSelectedType(value)
+							}}
+						>
+							<SelectTrigger id="type">
+								<SelectValue placeholder="Select a Type"/>
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={'full'}>
+									Full
+								</SelectItem>
+								<SelectItem value={'trailer'}>
+									Trailer
+								</SelectItem>
+								<SelectItem value={'bonus'}>
+									Bonus
+								</SelectItem>
+							</SelectContent>
+						</Select>
+						{/* Hidden input to submit language */}
+						<input
+							type="hidden"
+							name="type"
+							value={selectedType} // Serialize the editor's content to HTML
+						/>
+					</div>
+
 					{/* Publish Date Field using Calendar with Popover */}
 					<div className="space-y-1">
 						<Label htmlFor="pubDate">Publish Date</Label>
@@ -170,8 +212,9 @@ export default function EpisodeEditor({ episode, actionData }) {
 						<input type="hidden" name="pubDate" value={isoDate} /> {/* Send ISO format to backend */}
 					</div>
 
-					{/* Explicit Switch */}
-					<div className="flex items-center space-x-2">
+
+					{/* Switches for Explicit and Is Published */}
+					<div className="flex items-center space-x-2 py-2">
 						<Label htmlFor="explicit">Explicit</Label>
 						<Switch
 							id="explicit"
@@ -181,7 +224,20 @@ export default function EpisodeEditor({ episode, actionData }) {
 								fields.explicit.onChange(e.target.checked);
 							}}
 						/>
+						<span className="px-4"></span>
+						<Label htmlFor="explicit">Is Published</Label>
+						<Switch
+							id="is-published"
+							defaultChecked={episode?.isPublished ?? false}
+							{...getInputProps(fields.isPublished, {type: "checkbox"})}
+							onChange={(e) => {
+								fields.isPublished.onChange(e.target.checked);
+							}}
+						/>
+
 					</div>
+
+					<hr/>
 
 					{/* Action Buttons */}
 					<div className="flex space-x-4">
