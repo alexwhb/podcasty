@@ -14,6 +14,7 @@ import { Input } from './ui/input.tsx'
 import { Label } from './ui/label.tsx'
 import { Textarea } from './ui/textarea.tsx'
 import { NumberInput } from '#app/components/ui/number-input.tsx'
+import { CheckboxProps } from '@radix-ui/react-checkbox'
 export type ListOfErrors = Array<string | null | undefined> | null | undefined
 
 export function ErrorList({
@@ -356,8 +357,8 @@ export function NumberField({
 														}: {
 	labelProps: React.LabelHTMLAttributes<HTMLLabelElement>
 	inputProps?: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type' | 'min' | 'max' | 'step'>
-	value: number
-	onChange: (value: number) => void
+	value: number | null
+	onChange: (value: number | null) => void
 	min?: number
 	max?: number
 	step?: number

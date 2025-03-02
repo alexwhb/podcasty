@@ -1,19 +1,21 @@
 import React, { useState } from "react";
-import { useActionData, Form } from "react-router";
+import { Form } from "react-router";
 import { Button } from "#app/components/ui/button";
 import { Input } from "#app/components/ui/input";
 import { Progress } from "#app/components/ui/progress";
 import { calculateTotalChunks, getChunk, UploadChunkSchema } from "#app/routes/test+/upload-utils";
 
+type ResponseData = {
+  status: string;
+  file?: string;
+  metadata?: any;
+};
+
 export default function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadComplete, setUploadComplete] = useState<{
-    status: string;
-    file?: string;
-    metadata?: any;
-  } | null>(null);
+  const [uploadComplete, setUploadComplete] = useState<ResponseData | null>(null);
 
   async function checkResumeStatus(uploadId: string) {
     const response = await fetch(`/test/upload/resume?uploadId=${uploadId}`);
@@ -26,7 +28,8 @@ export default function UploadPage() {
     Object.entries(chunkData).forEach(([key, value]) => formData.append(key, value as any));
     const response = await fetch("/test/upload/chunk", { method: "POST", body: formData });
     if (!response.ok) throw new Error("Chunk upload failed");
-    const responseData = await response.json();
+
+    const responseData = await response.json() as ResponseData;
     
     if (responseData.status === "complete") {
       setUploadComplete(responseData);

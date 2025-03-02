@@ -19,7 +19,7 @@ import {
 	Editor,
 	type Descendant,
 	Element as SlateElement,
-	type BaseEditor,
+	type BaseEditor, type CustomTypes,
 } from 'slate'
 import { withHistory } from 'slate-history'
 import {
@@ -205,7 +205,7 @@ const RichTextEditor = ({
 	onChange,
 }: {
 	initialHTML?: string
-	onChange: (element: Element) => void
+	onChange: (element: string) => void
 }) => {
 	const initialValue = useMemo(() => {
 		try {
@@ -390,9 +390,9 @@ const toggleMark = (editor: BaseEditor, format: string) => {
 }
 const isMarkActive = (
 	editor: BaseEditor,
-	format: keyof CustomText,
+	format: keyof CustomTypes,
 ): boolean => {
-	const marks = Editor.marks(editor) as CustomText | null
+	const marks = Editor.marks(editor) as CustomTypes | null
 	return marks ? marks[format] === true : false
 }
 

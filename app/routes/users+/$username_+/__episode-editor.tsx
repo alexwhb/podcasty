@@ -25,9 +25,11 @@ import {
 	PopoverTrigger,
 	PopoverContent,
 } from '#app/components/ui/popover'
-import { Switch } from '#app/components/ui/switch'
-import {type Info} from './+types/podcasts.$podcastId.episode.$episodeId.new'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#app/components/ui/select.tsx'
+import { Switch } from '#app/components/ui/switch'
+// @ts-ignore
+import {type Info} from './+types/podcasts.$podcastId.episode.$episodeId.new'
+
 
 export const EpisodeEditorSchema = z.object({
 	title: z.string().min(1, 'Title is required.').max(100),
@@ -133,19 +135,19 @@ export default function EpisodeEditor({ episode, actionData }: {
 
 					<div className="flex flex-row gap-x-8">
 						<NumberField
-							min={0}
+							min={1}
 							max={10000}
 							labelProps={{ children: 'Episode' }}
-							onChange={(number: number) => setEpisode(number)}
+							onChange={(number: number | null) => setEpisode(number)}
 							value={episodeNum}
 							errors={fields.episode.errors}
 						/>
 
 						<NumberField
-							min={0}
+							min={1}
 							max={10000}
 							labelProps={{ children: 'Season' }}
-							onChange={(number: number) => setSeasonNum(number)}
+							onChange={(number: number | null) => setSeasonNum(number)}
 							value={seasonNum}
 							errors={fields.season.errors}
 						/>
