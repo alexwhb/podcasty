@@ -10,6 +10,7 @@ import {
 	useMatches,
 } from 'react-router'
 import { HoneypotProvider } from 'remix-utils/honeypot/react'
+import logoIcon from '../public/podcasty.svg'
 import { type Route } from './+types/root.ts'
 import appleTouchIconAssetUrl from './assets/favicons/apple-touch-icon.png'
 import faviconAssetUrl from './assets/favicons/favicon.svg'
@@ -39,7 +40,6 @@ import { type Theme, getTheme } from './utils/theme.server.ts'
 import { makeTimings, time } from './utils/timing.server.ts'
 import { getToast } from './utils/toast.server.ts'
 import { useOptionalUser } from './utils/user.ts'
-import logoIcon from '../public/podcasty.svg'
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -63,8 +63,8 @@ export const links: Route.LinksFunction = () => {
 
 export const meta: Route.MetaFunction = ({ data }) => {
 	return [
-		{ title: data ? 'Epic Notes' : 'Error | Epic Notes' },
-		{ name: 'description', content: `Your own captain's log` },
+		{ title: data ? 'Podcasty' : 'Error | Podcasty' },
+		{ name: 'description', content: `Your one stop shop for hosting your own podcast` },
 	]
 }
 
