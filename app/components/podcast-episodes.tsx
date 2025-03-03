@@ -1,5 +1,6 @@
-// PodcastEpisodes.tsx
+import { ArrowUpDown, PlusIcon } from 'lucide-react'
 import { useEffect } from 'react'
+import { Link } from 'react-router'
 import { Button } from '#app/components/ui/button'
 import {
 	DropdownMenu,
@@ -8,8 +9,7 @@ import {
 	DropdownMenuTrigger,
 } from '#app/components/ui/dropdown-menu'
 import { Input } from '#app/components/ui/input'
-import { ArrowUpDown, PlusIcon } from 'lucide-react'
-import { Link } from 'react-router'
+import { getEpisodeImgSrc } from '#app/utils/misc.tsx'
 
 interface Episode {
 	id: string
@@ -20,12 +20,13 @@ interface Episode {
 	duration: number
 	season?: number
 	number?: number
+	image?: { id: string }
 }
 
 interface Podcast {
 	id: string
 	title: string
-	image?: string
+	image?: {id: string}
 	episodes: Episode[]
 }
 
@@ -145,8 +146,10 @@ export default function PodcastEpisodes({
 				<div key={episode.id} className="flex items-center border-b py-4">
 					<div className="mr-4 flex-shrink-0">
 						<img
-							src="https://placehold.co/60"
+							src={episode.image ? getEpisodeImgSrc(episode.image.id) : "https://placehold.co/60"}
 							alt="Episode Thumbnail"
+							width={60}
+							height={60}
 							className="rounded-md object-cover"
 						/>
 					</div>
