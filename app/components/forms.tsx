@@ -1,6 +1,10 @@
-import { useInputControl } from '@conform-to/react'
+import { useInputControl,
+	unstable_useControl as useControl,
+	type FieldMetadata } from '@conform-to/react'
+import { type CheckboxProps } from '@radix-ui/react-checkbox'
 import { REGEXP_ONLY_DIGITS_AND_CHARS, type OTPInputProps } from 'input-otp'
-import React, { useId } from 'react'
+import React, { useId, useRef, type ElementRef  } from 'react'
+import { NumberInput } from '#app/components/ui/number-input.tsx'
 import MinimalEditor from './rich-text-editor.tsx'
 import { Button } from './ui/button.tsx'
 import { Checkbox } from './ui/checkbox.tsx'
@@ -12,9 +16,10 @@ import {
 } from './ui/input-otp.tsx'
 import { Input } from './ui/input.tsx'
 import { Label } from './ui/label.tsx'
+import { Switch } from './ui/switch';
 import { Textarea } from './ui/textarea.tsx'
-import { NumberInput } from '#app/components/ui/number-input.tsx'
-import { CheckboxProps } from '@radix-ui/react-checkbox'
+
+
 export type ListOfErrors = Array<string | null | undefined> | null | undefined
 
 export function ErrorList({
@@ -390,4 +395,33 @@ export function NumberField({
 			</div>
 		</div>
 	)
+}
+
+export function SwitchConform({ meta }: { meta: FieldMetadata<boolean> }) {
+	const switchRef = useRef<ElementRef<typeof Switch>>(null);
+	const control = useControl(meta);
+
+	return (
+		<>
+			<input
+				name={meta.name}
+				ref={control.register}
+				defaultValue={meta.initialValue}
+				className="sr-only"
+				tabIndex={-1}
+				onFocus={() => {
+					switchRef.current?.focus();
+				}}
+			/>
+			<Switch
+				ref={switchRef}
+				checked={control.value === 'on'}
+				onCheckedChange={(checked) => {
+					control.change(checked ? 'on' : '');
+				}}
+				onBlur={control.blur}
+				className="focus:ring-stone-950 focus:ring-2 focus:ring-offset-2"
+			></Switch>
+		</>
+	);
 }
