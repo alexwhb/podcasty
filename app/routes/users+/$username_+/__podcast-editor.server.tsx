@@ -36,7 +36,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			return data([{ error: 'Podcast name does not match.' }], { status: 400 })
 		}
 
-		await prisma.podcast.delete({ where: { id: params.podcastId } })
+		await prisma.$transaction([
+			prisma.podcast.delete({ where: { id: params.podcastId } }),
+		]);
+
 		return redirect(`/users/${params.username}/podcasts/`)
 	}
 
