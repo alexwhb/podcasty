@@ -1,5 +1,5 @@
 import { data, type LoaderFunctionArgs } from 'react-router'
-import { ResumeSchema } from '#app/routes/test+/upload-utils.ts'
+import { ResumeSchema } from '#app/utils/chunk-upload/upload-utils.ts'
 import { prisma } from '#app/utils/db.server.ts'
 
 
