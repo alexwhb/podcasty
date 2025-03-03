@@ -142,7 +142,7 @@ export default function PodcastEditor({
 					<MinimalEditorField
 						labelProps={{ children: "Description", htmlFor: "description" }}
 						initialHTML={podcast?.description}
-						onChange={(html) => {
+						onChange={() => {
 							// Any additional logic you need when the editor content changes
 						}}
 						errors={fields?.description?.errors}
