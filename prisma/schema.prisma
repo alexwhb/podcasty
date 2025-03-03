@@ -221,26 +221,28 @@ model Episode {
   description String
 
   // todo add these back. 
-  link          String
-  audioUrl      String // Previously "enclosureUrl"
-  audioSize     Int // Previously "enclosureLength" (in bytes)
-  audioType     String // Previously "enclosureType" (e.g., "audio/mpeg")
-  guid          String
-  pubDate       DateTime
-  duration      Int // Duration in seconds
-  episodeType   String
-  season        Int?
-  episode       Int?
-  explicit      Boolean  @default(false)
-  transcriptUrl String?
-  isPublished   Boolean  @default(false)
+  link        String
+  audioUrl    String // Previously "enclosureUrl"
+  audioSize   Int // Previously "enclosureLength" (in bytes)
+  audioType   String // Previously "enclosureType" (e.g., "audio/mpeg")
+  guid        String
+  pubDate     DateTime
+  duration    Int // Duration in seconds
+  episodeType String
+  season      Int?
+  episode     Int?
+  explicit    Boolean  @default(false)
+  // transcriptUrl String?
+  isPublished Boolean  @default(false)
 
   image EpisodeImage?
+
+  transcript Transcript?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  podcast   Podcast @relation(fields: [podcastId], references: [id])
+  podcast   Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   podcastId String
 }
 
@@ -256,6 +258,14 @@ model EpisodeImage {
   episodeId String  @unique
 
   @@index([episodeId])
+}
+
+model Transcript {
+  id          String  @id @default(cuid())
+  contentType String
+  blob        Bytes
+  episode     Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  episodeId   String  @unique
 }
 
 model Upload {
