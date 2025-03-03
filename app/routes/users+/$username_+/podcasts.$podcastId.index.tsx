@@ -1,11 +1,6 @@
 import { PencilIcon } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import {
-	Link,
-	useLoaderData,
-	useSearchParams,
-	useFetcher,
-} from 'react-router'
+import { Link, useFetcher, useLoaderData, useSearchParams } from 'react-router'
 import PodcastEpisodes from '#app/components/podcast-episodes' // Import the PodcastEpisodes component
 import { Spacer } from '#app/components/spacer.tsx'
 import { Button } from '#app/components/ui/button.tsx'
@@ -15,7 +10,6 @@ import { getPodcastImgSrc } from '#app/utils/misc.tsx'
 import { type Route } from './+types/podcasts.$podcastId'
 
 const PAGE_SIZE = 10
-
 
 export async function loader({ params, request }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)
@@ -29,9 +23,14 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 	// Fetch the podcast.
 	const podcast = await prisma.podcast.findUnique({
 		where: { id: params.podcastId, ownerId: userId },
-		include: {
-    		image: true,
-  		},
+		select: {
+			id: true,
+			title: true,
+			author: true,
+			description: true,
+			createdAt: true,
+			image: { select: { id: true, updatedAt: true } },
+		},
 	})
 
 	if (!podcast) {
@@ -43,6 +42,15 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 		where: {
 			podcastId: params.podcastId,
 			title: { contains: searchQuery },
+		},
+		select: {
+			id: true,
+			title: true,
+			pubDate: true,
+			duration: true,
+			season: true,
+			episode: true,
+			image: { select: { id: true, updatedAt: true } },
 		},
 		orderBy: { pubDate: sort },
 		skip: (page - 1) * PAGE_SIZE,
@@ -184,16 +192,23 @@ export default function PodcastInfo() {
 	}, [handleSearch])
 
 	return (
-		<div className="mx-auto max-w-4xl overflow-y-auto p-6 w-full">
+		<div className="mx-auto w-full max-w-4xl overflow-y-auto p-6">
 			{/* Main content */}
 			<div className="mt-4 flex flex-col gap-6 md:flex-row">
 				<div className="w-full md:w-1/3">
 					<img
-						src={podcast?.image?.id  ? getPodcastImgSrc(podcast?.image?.id, podcast?.image?.updatedAt) : "https://placehold.co/300"}
+						src={
+							podcast?.image?.id
+								? getPodcastImgSrc(
+										podcast?.image?.id,
+										podcast?.image?.updatedAt,
+									)
+								: 'https://placehold.co/300'
+						}
 						alt="Podcast Cover"
 						width={250}
 						height={250}
-						className="w-full rounded-lg shadow-lg h-[250px] overflow-hidden object-cover"
+						className="h-[250px] w-full overflow-hidden rounded-lg object-cover shadow-lg"
 					/>
 				</div>
 				<div className="w-full space-y-4 md:w-2/3">
