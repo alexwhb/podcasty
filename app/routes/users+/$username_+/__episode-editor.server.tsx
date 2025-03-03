@@ -43,26 +43,25 @@ export async function action({
 		)
 	}
 
-	const { title, description, pubDate, explicit, season, episode } =
+	const { title, description, pubDate, explicit, season, episode, isPublished, episodeType } =
 		submission.value
 	await prisma.episode.upsert({
 		where: { id: params.episodeId ?? 'new_episode' },
 		create: {
 			title,
 			description,
-			pubDate: pubDate, // backend expects a Date object
+			pubDate, // backend expects a Date object
 			explicit,
 			guid: uuidv4(),
 			duration: 0, // todo update me
-			episodeType: '', // todo update me
+			episodeType,
 			link: '', // todo
 			audioUrl: '', // todo
 			audioSize: 0, // todo
 			audioType: '', // todo
 			season,
 			episode,
-			isPublished: true,
-			transcriptUrl: null, // todo update me
+			isPublished: isPublished,
 			podcastId: params.podcastId,
 		},
 		update: {
@@ -72,6 +71,8 @@ export async function action({
 			explicit,
 			season,
 			episode,
+			isPublished,
+			episodeType,
 		},
 	})
 
