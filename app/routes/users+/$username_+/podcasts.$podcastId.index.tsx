@@ -98,6 +98,14 @@ export async function action({ params, request }: Route.ActionArgs) {
 		})
 
 		return null
+	} else if (intent === 'publish') {
+		const episodeId = formData.get('episodeId') as string
+		const isPublished = formData.get('isPublished') === 'true'
+		await prisma.episode.update({
+			where: { id: episodeId },
+			data: { isPublished: isPublished },
+		})
+		return null
 	}
 
 	throw new Response('Invalid action', { status: 400 })
@@ -176,14 +184,26 @@ export default function PodcastInfo() {
 
 	// Memoized delete handler using fetcher to submit a form.
 	const handleDeleteEpisode = useCallback(
-		(episodeId: string) => {
+		async (episodeId: string) => {
 			const formData = new FormData()
 			formData.set('intent', 'delete')
 			formData.set('episodeId', episodeId)
-			fetcher.submit(formData, { method: 'post' })
+			await fetcher.submit(formData, { method: 'post' })
 		},
 		[fetcher],
 	)
+
+	const onPublishUnpublish = useCallback(
+		async (episodeId: string, isPublished: boolean) => {
+			const formData = new FormData()
+			formData.set('intent', 'publish')
+			formData.set('episodeId', episodeId)
+			formData.set('isPublished', String(isPublished))
+			await fetcher.submit(formData, { method: 'post' })
+		},
+		[fetcher],
+	)
+
 
 	// When the clear button is clicked, clear the local search state
 	// and update the URL.
@@ -244,6 +264,7 @@ export default function PodcastInfo() {
 				podcast={podcast}
 				episodes={episodeList}
 				totalEpisodes={totalEpisodes}
+				onPublishUnpublish={onPublishUnpublish}
 				onSearch={handleSearch}
 				onSortToggle={handleSortToggle}
 				onLoadMore={handleLoadMore}

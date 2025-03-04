@@ -1,6 +1,7 @@
 import { ArrowUpDown, PlusIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link } from 'react-router'
+import EpisodeStatusIndicator from '#app/components/episode-status-indicator.tsx'
 import { Button } from '#app/components/ui/button'
 import {
 	DropdownMenu,
@@ -10,7 +11,6 @@ import {
 } from '#app/components/ui/dropdown-menu'
 import { Input } from '#app/components/ui/input'
 import { getEpisodeImgSrc } from '#app/utils/misc.tsx'
-import EpisodeStatusIndicator from '#app/components/episode-status-indicator.tsx'
 
 interface Episode {
 	id: string
@@ -40,6 +40,7 @@ interface PodcastEpisodesProps {
 	onSortToggle: (newSort: 'asc' | 'desc') => void
 	onLoadMore: () => void
 	onDeleteEpisode: (episodeId: string) => void
+	onPublishUnpublish: (episodeId: string, isPublished: boolean) => void
 	currentSort: 'asc' | 'desc'
 	isLoading: boolean
 	// For search field styling and clear functionality.
@@ -78,6 +79,7 @@ export default function PodcastEpisodes({
 	onDeleteEpisode,
 	currentSort,
 	isLoading,
+	onPublishUnpublish,
 	localSearch,
 	setLocalSearch,
 	clearSearch,
@@ -98,9 +100,7 @@ export default function PodcastEpisodes({
 
 	// Delete handler
 	function handleDelete(episodeId: string) {
-		if (confirm('Are you sure you want to delete this episode?')) {
-			onDeleteEpisode(episodeId)
-		}
+		onDeleteEpisode(episodeId)
 	}
 
 	return (
@@ -203,8 +203,14 @@ export default function PodcastEpisodes({
 								<DropdownMenuItem onSelect={() => handleDelete(episode.id)}>
 									Delete
 								</DropdownMenuItem>
-								<DropdownMenuItem asChild>
-									<a href="#">Unpublish</a>
+								<DropdownMenuItem
+									onSelect={() => onPublishUnpublish(episode.id, !episode.isPublished)}
+								>
+									{episode.isPublished ? (
+										<>Unpublish</>
+									) : (
+										<>Publish</>
+									)}
 								</DropdownMenuItem>
 								<DropdownMenuItem asChild>
 									<a href="#">Share</a>
