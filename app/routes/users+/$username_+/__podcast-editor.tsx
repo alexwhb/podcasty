@@ -1,19 +1,25 @@
 import {
+	type FieldMetadata,
 	FormProvider,
+	getFieldsetProps,
 	getFormProps,
 	getInputProps,
-	getFieldsetProps,
-	useForm, type FieldMetadata,
+	useForm,
 } from '@conform-to/react'
-import {getZodConstraint, parseWithZod} from '@conform-to/zod'
-import {useState} from 'react';
-import {Form, Link} from 'react-router'
-import {z} from 'zod'
-import DeleteDialog from "#app/components/delete-dialog.tsx";
-import { Field, TagField, ErrorList, MinimalEditorField } from '#app/components/forms.tsx'
-import {Button} from '#app/components/ui/button.tsx'
-import {Icon} from '#app/components/ui/icon.tsx'
-import {Label} from '#app/components/ui/label.tsx'
+import { getZodConstraint, parseWithZod } from '@conform-to/zod'
+import { useState } from 'react'
+import { Form, Link } from 'react-router'
+import { z } from 'zod'
+import DeleteDialog from '#app/components/delete-dialog.tsx'
+import {
+	ErrorList,
+	Field,
+	MinimalEditorField,
+	TagField,
+} from '#app/components/forms.tsx'
+import { Button } from '#app/components/ui/button.tsx'
+import { Icon } from '#app/components/ui/icon.tsx'
+import { Label } from '#app/components/ui/label.tsx'
 import {
 	Select,
 	SelectContent,
@@ -21,11 +27,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '#app/components/ui/select.tsx'
-import {Switch} from '#app/components/ui/switch.tsx'
-import {LANGUAGES} from '#app/lib/utils.ts'
-import {cn, getPodcastImgSrc} from '#app/utils/misc.tsx'
-import {type Info} from './+types/podcasts.$podcastId.new'
-
+import { Switch } from '#app/components/ui/switch.tsx'
+import { LANGUAGES } from '#app/lib/utils.ts'
+import { cn, getPodcastImgSrc } from '#app/utils/misc.tsx'
+import { type Info } from './+types/podcasts.$podcastId.new'
 
 // TODO move this out into it's own file, so we can easily reuse it.
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10MB as an example
@@ -33,7 +38,7 @@ export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10MB as an example
 const ImageFieldsetSchema = z.object({
 	id: z.string().optional(),
 	file: z
-		.instanceof(File, {message: 'A valid image file is required if provided'})
+		.instanceof(File, { message: 'A valid image file is required if provided' })
 		.optional()
 		.refine(
 			(file) => !file || file.size <= MAX_UPLOAD_SIZE,
@@ -42,8 +47,8 @@ const ImageFieldsetSchema = z.object({
 		.refine(
 			(file) => !file || ['image/jpeg', 'image/png'].includes(file.type),
 			'File must be a JPEG or PNG image',
-		)
-});
+		),
+})
 
 export type ImageFieldset = z.infer<typeof ImageFieldsetSchema>
 
@@ -65,9 +70,9 @@ export const PodcastEditorSchema = z.object({
 // export type PodcastEditor = z.infer<typeof PodcastEditorSchema>
 
 export default function PodcastEditor({
-										  podcast,
-										  actionData,
-									  }: {
+	podcast,
+	actionData,
+}: {
 	podcast?: Info['loaderData']['podcast']
 	actionData?: Info['actionData']
 }) {
@@ -75,9 +80,7 @@ export default function PodcastEditor({
 		podcast?.language || 'en',
 	)
 
-	const [selectedType, setSelectedType] = useState(
-		podcast?.type || 'episodic'
-	)
+	const [selectedType, setSelectedType] = useState(podcast?.type || 'episodic')
 
 	const [tags, setTags] = useState<string[]>(
 		podcast?.category ? podcast.category.split(',') : [],
@@ -87,8 +90,8 @@ export default function PodcastEditor({
 		id: 'podcast-editor',
 		constraint: getZodConstraint(PodcastEditorSchema),
 		lastResult: actionData?.result,
-		onValidate({formData}) {
-			const res = parseWithZod(formData, {schema: PodcastEditorSchema})
+		onValidate({ formData }) {
+			const res = parseWithZod(formData, { schema: PodcastEditorSchema })
 			console.log(res)
 			return res
 		},
@@ -102,7 +105,7 @@ export default function PodcastEditor({
 			explicit: podcast?.explicit || false,
 			locked: podcast?.locked || false,
 			baseUrl: podcast?.baseUrl,
-			image: podcast?.image
+			image: podcast?.image,
 		},
 		shouldRevalidate: 'onBlur',
 	})
@@ -122,25 +125,25 @@ export default function PodcastEditor({
 					"enter" on an input field, the primary form function is submitted
 					rather than the first button in the form (which is delete/add image).
 				*/}
-					<button type="submit" className="hidden"/>
+					<button type="submit" className="hidden" />
 					{podcast ? (
-						<input type="hidden" name="id" value={podcast?.id}/>
+						<input type="hidden" name="id" value={podcast?.id} />
 					) : null}
 					<div>
 						<Label>Image</Label>
-						<ImageChooser meta={fields.image} form={form}/>
+						<ImageChooser meta={fields.image} form={form} />
 					</div>
 					<Field
-						labelProps={{children: 'Title'}}
+						labelProps={{ children: 'Title' }}
 						inputProps={{
-							...getInputProps(fields.title, {type: 'text'}),
+							...getInputProps(fields.title, { type: 'text' }),
 							placeholder: 'Podcast title',
 						}}
 						errors={fields.title.errors}
 					/>
 
 					<MinimalEditorField
-						labelProps={{ children: "Description", htmlFor: "description" }}
+						labelProps={{ children: 'Description', htmlFor: 'description' }}
 						initialHTML={podcast?.description}
 						onChange={() => {
 							// Any additional logic you need when the editor content changes
@@ -150,9 +153,9 @@ export default function PodcastEditor({
 
 					{/* Author Field */}
 					<Field
-						labelProps={{children: 'Author'}}
+						labelProps={{ children: 'Author' }}
 						inputProps={{
-							...getInputProps(fields.author, {type: 'text'}),
+							...getInputProps(fields.author, { type: 'text' }),
 							placeholder: 'John Doe',
 						}}
 						errors={fields.author.errors}
@@ -160,9 +163,9 @@ export default function PodcastEditor({
 
 					{/* Base URL Field */}
 					<Field
-						labelProps={{children: 'Base Podcast URL'}}
+						labelProps={{ children: 'Base Podcast URL' }}
 						inputProps={{
-							...getInputProps(fields.baseUrl, {type: 'text'}),
+							...getInputProps(fields.baseUrl, { type: 'text' }),
 							placeholder: 'https://mypodcast.com',
 						}}
 						errors={fields.baseUrl.errors}
@@ -179,7 +182,7 @@ export default function PodcastEditor({
 							}}
 						>
 							<SelectTrigger id="language">
-								<SelectValue placeholder="Select a language"/>
+								<SelectValue placeholder="Select a language" />
 							</SelectTrigger>
 							<SelectContent>
 								{LANGUAGES.map((lang) => (
@@ -207,15 +210,11 @@ export default function PodcastEditor({
 							}}
 						>
 							<SelectTrigger id="type">
-								<SelectValue placeholder="Select a Type"/>
+								<SelectValue placeholder="Select a Type" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value={'episodic'}>
-									Episodic
-								</SelectItem>
-								<SelectItem value={'serial'}>
-									Serial
-								</SelectItem>
+								<SelectItem value={'episodic'}>Episodic</SelectItem>
+								<SelectItem value={'serial'}>Serial</SelectItem>
 							</SelectContent>
 						</Select>
 						{/* Hidden input to submit language */}
@@ -229,7 +228,7 @@ export default function PodcastEditor({
 					{/* Categories Tag Input */}
 
 					<TagField
-						labelProps={{children: 'Categories (Tags)'}}
+						labelProps={{ children: 'Categories (Tags)' }}
 						tags={tags}
 						setTags={setTags}
 						errors={fields.category.errors}
@@ -241,10 +240,9 @@ export default function PodcastEditor({
 						<Switch
 							id="explicit"
 							defaultChecked={podcast?.explicit ?? false}
-							{...getInputProps(fields.explicit, {type: "checkbox"})}
-
+							{...getInputProps(fields.explicit, { type: 'checkbox' })}
 							onChange={(e) => {
-								fields.explicit.onChange(e.target.checked);
+								fields.explicit.onChange(e.target.checked)
 							}}
 						/>
 						<span className="px-4"></span>
@@ -252,57 +250,57 @@ export default function PodcastEditor({
 						<Switch
 							id="locked"
 							defaultChecked={podcast?.locked ?? true}
-							{...getInputProps(fields.locked, {type: "checkbox"})}
+							{...getInputProps(fields.locked, { type: 'checkbox' })}
 							onChange={(e) => {
-								fields.locked.onChange(e.target.checked);
+								fields.locked.onChange(e.target.checked)
 							}}
 						/>
 					</div>
 
-					<hr/>
+					<hr />
 
-					<div className="flex gap-4 border-top">
+					<div className="border-top flex gap-4">
 						<Link to="../">
 							<Button variant="outline">Cancel</Button>
 						</Link>
 						<Button type="submit">Save</Button>
 
-
-						{podcast && (
-							<span className="ml-auto">
-								<DeleteDialog 
-									verificationString={podcast.title} 
-									placeholder="Enter podcast title"
-									onDelete={() => {
-										// Add your delete logic here
-										form.submit({ _action: 'delete' })
-									}}
-								/>
-							</span>
-						)}
+						<span className="ml-auto">
+							<DeleteDialog
+								verificationString={podcast?.title}
+								placeholder="Enter podcast title"
+								displayTrigger={podcast != null}
+							/>
+						</span>
 					</div>
 
-					<ErrorList id={form.errorId} errors={form.errors}/>
+					<ErrorList id={form.errorId} errors={form.errors} />
 				</Form>
 			</FormProvider>
 		</main>
 	)
 }
 
-function ImageChooser({meta, form}: { meta: FieldMetadata<ImageFieldset>; form: any }) {
-	const fields = meta.getFieldset();
-	const existingImageId = fields.id.initialValue;
+function ImageChooser({
+	meta,
+	form,
+}: {
+	meta: FieldMetadata<ImageFieldset>
+	form: any
+}) {
+	const fields = meta.getFieldset()
+	const existingImageId = fields.id.initialValue
 	const [previewImage, setPreviewImage] = useState<string | null>(
 		existingImageId ? getPodcastImgSrc(existingImageId) : null,
-	);
+	)
 
 	console.log(existingImageId, fields.id, previewImage)
 
 	const handleRemoveImage = () => {
-		setPreviewImage(null);
-		form.update({name: 'image.file', value: undefined});
-		form.update({name: 'image.id', value: undefined}); // Signal removal of existing image
-	};
+		setPreviewImage(null)
+		form.update({ name: 'image.file', value: undefined })
+		form.update({ name: 'image.id', value: undefined }) // Signal removal of existing image
+	}
 
 	return (
 		<fieldset {...getFieldsetProps(meta)}>
@@ -316,30 +314,30 @@ function ImageChooser({meta, form}: { meta: FieldMetadata<ImageFieldset>; form: 
 								'group absolute h-32 w-32 rounded-lg',
 								previewImage
 									? 'opacity-0' // Hide the label visually when preview is shown
-									: 'bg-accent opacity-40 hover:opacity-100 cursor-pointer',
+									: 'cursor-pointer bg-accent opacity-40 hover:opacity-100',
 							)}
 						>
-							<div
-								className="flex h-32 w-32 items-center justify-center rounded-lg border border-muted-foreground text-4xl text-muted-foreground">
-								<Icon name="plus"/>
+							<div className="flex h-32 w-32 items-center justify-center rounded-lg border border-muted-foreground text-4xl text-muted-foreground">
+								<Icon name="plus" />
 							</div>
 							<input
 								aria-label="Image"
 								className="absolute left-0 top-0 h-32 w-32 cursor-pointer opacity-0"
 								onChange={(event) => {
-									const file = event.target.files?.[0];
-									console.log('Selected file:', file);
+									const file = event.target.files?.[0]
+									console.log('Selected file:', file)
 									if (file) {
-										const reader = new FileReader();
-										reader.onloadend = () => setPreviewImage(reader.result as string);
-										reader.readAsDataURL(file);
+										const reader = new FileReader()
+										reader.onloadend = () =>
+											setPreviewImage(reader.result as string)
+										reader.readAsDataURL(file)
 									} else {
-										setPreviewImage(null);
-										form.update({name: 'image.id', value: undefined});
+										setPreviewImage(null)
+										form.update({ name: 'image.id', value: undefined })
 									}
 								}}
 								accept="image/*"
-								{...getInputProps(fields.file, {type: 'file'})}
+								{...getInputProps(fields.file, { type: 'file' })}
 							/>
 						</label>
 
@@ -356,24 +354,24 @@ function ImageChooser({meta, form}: { meta: FieldMetadata<ImageFieldset>; form: 
 									className="absolute -right-2 -top-2 rounded-full bg-destructive p-1"
 									onClick={handleRemoveImage}
 								>
-									<Icon name="cross-1" className="h-4 w-4 text-white"/>
+									<Icon name="cross-1" className="h-4 w-4 text-white" />
 								</button>
 							</div>
 						)}
 
 						{/* Hidden input for existing image ID only if it has a value */}
 						{previewImage && fields.id.value ? (
-							<input {...getInputProps(fields.id, {type: 'hidden'})} />
+							<input {...getInputProps(fields.id, { type: 'hidden' })} />
 						) : null}
 					</div>
 					<div className="min-h-[12px] px-4 pb-3 pt-1">
-						<ErrorList id={fields.file.errorId} errors={fields.file.errors}/>
+						<ErrorList id={fields.file.errorId} errors={fields.file.errors} />
 					</div>
 				</div>
 			</div>
 			<div className="min-h-[12px] px-4 pb-3 pt-1">
-				<ErrorList id={meta.errorId} errors={meta.errors}/>
+				<ErrorList id={meta.errorId} errors={meta.errors} />
 			</div>
 		</fieldset>
-	);
+	)
 }
