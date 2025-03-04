@@ -50,6 +50,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 			duration: true,
 			season: true,
 			episode: true,
+			isPublished: true,
 			image: { select: { id: true, updatedAt: true } },
 		},
 		orderBy: { pubDate: sort },
@@ -109,7 +110,7 @@ export default function PodcastInfo() {
 		totalEpisodes,
 		currentPage,
 		currentSort,
-		currentSearch,
+		searchQuery,
 	} = useLoaderData<typeof loader>()
 
 	// Maintain a local episode list that appends new episodes
@@ -117,7 +118,7 @@ export default function PodcastInfo() {
 	const [episodeList, setEpisodeList] = useState(loaderEpisodes)
 
 	// We'll also keep a local search value for the input field.
-	const [localSearch, setLocalSearch] = useState(currentSearch)
+	const [localSearch, setLocalSearch] = useState(searchQuery)
 
 	const [searchParams, setSearchParams] = useSearchParams()
 	const fetcher = useFetcher()
@@ -153,11 +154,11 @@ export default function PodcastInfo() {
 	const handleSearch = useCallback(
 		(query: string) => {
 			// Only update if the incoming value differs from what is currently in the URL.
-			if (query !== currentSearch) {
+			if (query !== searchQuery) {
 				updateSearchParams({ search: query, page: 1 })
 			}
 		},
-		[currentSearch, updateSearchParams],
+		[searchQuery, updateSearchParams],
 	)
 
 	// Memoized handler: toggle sort order and reset page.
@@ -253,7 +254,7 @@ export default function PodcastInfo() {
 				localSearch={localSearch}
 				setLocalSearch={setLocalSearch}
 				clearSearch={clearSearch}
-				currentSearch={currentSearch}
+				currentSearch={searchQuery}
 			/>
 		</div>
 	)
