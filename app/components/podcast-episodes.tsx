@@ -10,6 +10,7 @@ import {
 } from '#app/components/ui/dropdown-menu'
 import { Input } from '#app/components/ui/input'
 import { getEpisodeImgSrc } from '#app/utils/misc.tsx'
+import EpisodeStatusIndicator from '#app/components/episode-status-indicator.tsx'
 
 interface Episode {
 	id: string
@@ -19,6 +20,7 @@ interface Episode {
 	explicit: boolean
 	duration: number
 	season?: number
+	isPublished: boolean
 	number?: number
 	image?: { id: string }
 }
@@ -26,7 +28,7 @@ interface Episode {
 interface Podcast {
 	id: string
 	title: string
-	image?: {id: string}
+	image?: { id: string }
 	episodes: Episode[]
 }
 
@@ -146,7 +148,11 @@ export default function PodcastEpisodes({
 				<div key={episode.id} className="flex items-center border-b py-4">
 					<div className="mr-4 flex-shrink-0">
 						<img
-							src={episode.image ? getEpisodeImgSrc(episode.image.id) : "https://placehold.co/60"}
+							src={
+								episode.image
+									? getEpisodeImgSrc(episode.image.id)
+									: 'https://placehold.co/60'
+							}
 							alt="Episode Thumbnail"
 							width={60}
 							height={60}
@@ -175,6 +181,12 @@ export default function PodcastEpisodes({
 							{formatDuration(episode.duration)}
 						</div>
 					</div>
+					{episode.isPublished ? (
+						<EpisodeStatusIndicator variant="green" title="Live Now" />
+					) : (
+						<EpisodeStatusIndicator variant="red" title="Draft" />
+					)}
+
 					<div className="ml-4">
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
