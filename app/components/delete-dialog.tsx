@@ -14,22 +14,43 @@ import {
 import {Button} from '#app/components/ui/button.tsx'
 import {Input} from "#app/components/ui/input.tsx";
 
-// Alert dialog for podcast deletion confirmation.
-export default function DeleteDialog({
-                                         verificationString,
-                                         placeholder,
-                                     }: {
-    verificationString: string,
+interface DeleteDialogProps {
+    verificationString: string
     placeholder: string
-}) {
+    onDelete: () => void
+    isOpen?: boolean
+    onOpenChange?: (open: boolean) => void
+    trigger?: React.ReactNode
+}
+
+export default function DeleteDialog({
+    verificationString,
+    placeholder,
+    onDelete,
+    isOpen,
+    onOpenChange,
+    trigger
+}: DeleteDialogProps) {
     const [confirmInput, setConfirmInput] = useState('')
+    
+    const handleDelete = () => {
+        onDelete()
+        setConfirmInput('')
+        onOpenChange?.(false)
+    }
+
     return (
-        <AlertDialog>
-            <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                    <Trash/>
-                </Button>
-            </AlertDialogTrigger>
+        <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+            {/* Only show trigger if isOpen is not provided (uncontrolled mode) */}
+            {isOpen === undefined && (
+                <AlertDialogTrigger asChild>
+                    {trigger || (
+                        <Button variant="destructive">
+                            <Trash />
+                        </Button>
+                    )}
+                </AlertDialogTrigger>
+            )}
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
@@ -38,28 +59,24 @@ export default function DeleteDialog({
                         <strong>{verificationString}</strong> to confirm deletion.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <form method="post">
-                    <input type="hidden" name="_action" value="delete"/>
-                    <div className="m-4">
-                        <Input
-                            name="confirmName"
-                            placeholder={placeholder}
-                            value={confirmInput}
-                            onChange={(e) => setConfirmInput(e.target.value)}
-                        />
-                    </div>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel asChild>
-                            <Button variant="outline">Cancel</Button>
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            type="submit"
-                            disabled={confirmInput !== verificationString}
-                        >
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </form>
+                <div className="m-4">
+                    <Input
+                        placeholder={placeholder}
+                        value={confirmInput}
+                        onChange={(e) => setConfirmInput(e.target.value)}
+                    />
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel asChild>
+                        <Button variant="outline">Cancel</Button>
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={handleDelete}
+                        disabled={confirmInput !== verificationString}
+                    >
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
     )

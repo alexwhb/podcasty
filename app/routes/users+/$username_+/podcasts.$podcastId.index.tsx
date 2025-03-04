@@ -8,6 +8,7 @@ import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getPodcastImgSrc } from '#app/utils/misc.tsx'
 import { type Route } from './+types/podcasts.$podcastId'
+import DeleteDialog from '#app/components/delete-dialog.tsx'
 
 const PAGE_SIZE = 10
 
@@ -131,6 +132,10 @@ export default function PodcastInfo() {
 	const [searchParams, setSearchParams] = useSearchParams()
 	const fetcher = useFetcher()
 
+	// Add delete dialog state
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+	const [episodeToDelete, setEpisodeToDelete] = useState<{id: string, title: string} | null>(null)
+
 	// Whenever the loader returns new episodes, update our local list.
 	// When currentPage is 1 (i.e. a new search or sort occurred) we reset;
 	// Otherwise, we append.
@@ -204,13 +209,26 @@ export default function PodcastInfo() {
 		[fetcher],
 	)
 
-
 	// When the clear button is clicked, clear the local search state
 	// and update the URL.
 	const clearSearch = useCallback(() => {
 		setLocalSearch('')
 		handleSearch('')
 	}, [handleSearch])
+
+	// Memoized delete handlers
+	const handleDeleteDialogOpen = useCallback((episode: {id: string, title: string}) => {
+		setEpisodeToDelete(episode)
+		setDeleteDialogOpen(true)
+	}, [])
+
+	const handleDeleteConfirm = useCallback(async () => {
+		if (!episodeToDelete) return
+		
+		await handleDeleteEpisode(episodeToDelete.id)
+		setEpisodeToDelete(null)
+		setDeleteDialogOpen(false)
+	}, [episodeToDelete, handleDeleteEpisode])
 
 	return (
 		<div className="mx-auto w-full max-w-4xl overflow-y-auto p-6">
@@ -268,7 +286,7 @@ export default function PodcastInfo() {
 				onSearch={handleSearch}
 				onSortToggle={handleSortToggle}
 				onLoadMore={handleLoadMore}
-				onDeleteEpisode={handleDeleteEpisode}
+				onDeleteDialogOpen={handleDeleteDialogOpen}
 				currentPage={currentPage}
 				currentSort={currentSort}
 				isLoading={fetcher.state === 'submitting'}
@@ -277,6 +295,17 @@ export default function PodcastInfo() {
 				clearSearch={clearSearch}
 				currentSearch={searchQuery}
 			/>
+
+			{/* Delete Dialog */}
+			{episodeToDelete && (
+				<DeleteDialog 
+					verificationString={episodeToDelete.title}
+					placeholder="Enter episode title"
+					isOpen={deleteDialogOpen}
+					onOpenChange={setDeleteDialogOpen}
+					onDelete={handleDeleteConfirm}
+				/>
+			)}
 		</div>
 	)
 }

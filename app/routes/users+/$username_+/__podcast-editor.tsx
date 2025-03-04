@@ -270,8 +270,15 @@ export default function PodcastEditor({
 
 						{podcast && (
 							<span className="ml-auto">
-      							<DeleteDialog verificationString={podcast.title} placeholder="Enter podcast title"/>
-    						</span>
+								<DeleteDialog 
+									verificationString={podcast.title} 
+									placeholder="Enter podcast title"
+									onDelete={() => {
+										// Add your delete logic here
+										form.submit({ _action: 'delete' })
+									}}
+								/>
+							</span>
 						)}
 					</div>
 

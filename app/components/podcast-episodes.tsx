@@ -39,7 +39,7 @@ interface PodcastEpisodesProps {
 	onSearch: (query: string) => void
 	onSortToggle: (newSort: 'asc' | 'desc') => void
 	onLoadMore: () => void
-	onDeleteEpisode: (episodeId: string) => void
+	onDeleteDialogOpen: (episode: { id: string; title: string }) => void
 	onPublishUnpublish: (episodeId: string, isPublished: boolean) => void
 	currentSort: 'asc' | 'desc'
 	isLoading: boolean
@@ -76,7 +76,7 @@ export default function PodcastEpisodes({
 	onSearch,
 	onSortToggle,
 	onLoadMore,
-	onDeleteEpisode,
+	onDeleteDialogOpen,
 	currentSort,
 	isLoading,
 	onPublishUnpublish,
@@ -96,11 +96,6 @@ export default function PodcastEpisodes({
 	function toggleSort() {
 		const newSort = currentSort === 'asc' ? 'desc' : 'asc'
 		onSortToggle(newSort)
-	}
-
-	// Delete handler
-	function handleDelete(episodeId: string) {
-		onDeleteEpisode(episodeId)
 	}
 
 	return (
@@ -200,7 +195,13 @@ export default function PodcastEpisodes({
 										Edit
 									</Link>
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => handleDelete(episode.id)}>
+								<DropdownMenuItem onSelect={(e) => {
+									e.preventDefault()
+									onDeleteDialogOpen({
+										id: episode.id,
+										title: episode.title
+									})
+								}}>
 									Delete
 								</DropdownMenuItem>
 								<DropdownMenuItem
