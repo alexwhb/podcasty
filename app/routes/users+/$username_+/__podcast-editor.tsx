@@ -10,7 +10,7 @@ import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import { useState } from 'react'
 import { Form, Link } from 'react-router'
 import { z } from 'zod'
-import DeleteDialog from '#app/components/delete-dialog.tsx'
+import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
 import {
 	ErrorList,
 	Field,
@@ -259,17 +259,17 @@ export default function PodcastEditor({
 
 					<hr />
 
-					<div className="border-top flex gap-4">
+					<div className="flex gap-4">
 						<Link to="../">
 							<Button variant="outline">Cancel</Button>
 						</Link>
 						<Button type="submit">Save</Button>
 
 						<span className="ml-auto">
-							<DeleteDialog
+							<DeleteDialogWithInput
 								verificationString={podcast?.title}
 								placeholder="Enter podcast title"
-								displayTrigger={podcast != null}
+								displayTriggerButton={podcast != null}
 							/>
 						</span>
 					</div>

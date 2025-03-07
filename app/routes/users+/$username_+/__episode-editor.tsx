@@ -4,33 +4,40 @@ import {
 	getFormProps,
 	getInputProps,
 	useForm,
-} from '@conform-to/react';
-import { getZodConstraint, parseWithZod } from '@conform-to/zod';
-import { format } from 'date-fns/format';
-import { CalendarIcon } from 'lucide-react';
-import { useState, useMemo, useCallback } from 'react';
-import { Form, Link } from 'react-router';
-import { z } from 'zod';
-import DeleteDialog from '#app/components/delete-dialog.tsx';
+} from '@conform-to/react'
+import { getZodConstraint, parseWithZod } from '@conform-to/zod'
+import { format } from 'date-fns/format'
+import { CalendarIcon } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { Form, Link } from 'react-router'
+import { z } from 'zod'
+import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
+import DeleteDialog from '#app/components/delete-dialog.tsx'
 import {
 	Field,
 	MinimalEditorField,
 	NumberField,
-} from '#app/components/forms.tsx';
-import { Button } from '#app/components/ui/button';
-import { Calendar } from '#app/components/ui/calendar';
-import { Input } from '#app/components/ui/input';
-import { Label } from '#app/components/ui/label';
+} from '#app/components/forms.tsx'
+import { Button } from '#app/components/ui/button'
+import { Calendar } from '#app/components/ui/calendar'
+import { Input } from '#app/components/ui/input'
+import { Label } from '#app/components/ui/label'
 import {
 	Popover,
-	PopoverTrigger,
 	PopoverContent,
-} from '#app/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#app/components/ui/select.tsx';
-import { Switch } from '#app/components/ui/switch';
+	PopoverTrigger,
+} from '#app/components/ui/popover'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '#app/components/ui/select.tsx'
+import { Switch } from '#app/components/ui/switch'
 import Uploader from '#app/components/uploader.tsx'
 import { useChunkUploader } from '#app/hooks/use-chunk-uploader.ts'
-import { type Info } from './+types/podcasts.$podcastId.episode.$episodeId.new';
+import { type Info } from './+types/podcasts.$podcastId.episode.$episodeId.new'
 
 export const EpisodeEditorSchema = z.object({
 	title: z.string().min(1, 'Title is required.').max(100),
@@ -42,32 +49,32 @@ export const EpisodeEditorSchema = z.object({
 	isPublished: z.boolean().default(false),
 	episodeType: z.enum(['full', 'trailer', 'bonus']),
 	audioFile: z.string().optional(), // Added for uploaded file
-});
+})
 
-export default function EpisodeEditor({ episode, actionData }: {
-	episode?: Info['loaderData']['episode'];
-	actionData?: Info['actionData'];
+export default function EpisodeEditor({
+	episode,
+	actionData,
+}: {
+	episode?: Info['loaderData']['episode']
+	actionData?: Info['actionData']
 }) {
 	const initialDate = useMemo(
 		() => (episode?.pubDate ? new Date(episode.pubDate) : new Date()),
-		[episode?.pubDate]
-	);
+		[episode?.pubDate],
+	)
 
-	const [selectedDate, setSelectedDate] = useState(initialDate);
-	const [episodeNum, setEpisode] = useState<number | null>(null);
-	const [seasonNum, setSeasonNum] = useState<number | null>(null);
-	const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+	const [selectedDate, setSelectedDate] = useState(initialDate)
+	const [episodeNum, setEpisode] = useState<number | null>(null)
+	const [seasonNum, setSeasonNum] = useState<number | null>(null)
+	const [uploadedFile, setUploadedFile] = useState<string | null>(null)
 
 	const formattedDate = useMemo(
 		() => format(selectedDate, 'dd-MM-yyyy HH:mm:ss'),
-		[selectedDate]
-	);
-	const isoDate = useMemo(
-		() => selectedDate.toISOString(),
-		[selectedDate]
-	);
+		[selectedDate],
+	)
+	const isoDate = useMemo(() => selectedDate.toISOString(), [selectedDate])
 
-	const [selectedType, setSelectedType] = useState(episode?.type || 'full');
+	const [selectedType, setSelectedType] = useState(episode?.type || 'full')
 
 	const defaultValues = useMemo(
 		() => ({
@@ -84,26 +91,26 @@ export default function EpisodeEditor({ episode, actionData }: {
 			episodeType: episode?.type || 'full',
 			audioFile: episode?.audioFile || '', // Assuming episode might have an audioFile field
 		}),
-		[episode]
-	);
+		[episode],
+	)
 
 	const [form, fields] = useForm({
 		id: 'episode-editor',
 		constraint: getZodConstraint(EpisodeEditorSchema),
 		onValidate({ formData }) {
-			return parseWithZod(formData, { schema: EpisodeEditorSchema });
+			return parseWithZod(formData, { schema: EpisodeEditorSchema })
 		},
 		lastResult: actionData?.result,
 		defaultValue: defaultValues,
 		shouldRevalidate: 'onBlur',
-	});
+	})
 
 	const handleDateSelect = useCallback((date: Date | undefined) => {
-		if (date) setSelectedDate(date);
-	}, []);
+		if (date) setSelectedDate(date)
+	}, [])
 
 	// Use the uploader hook
-	const uploaderProps = useChunkUploader();
+	const uploaderProps = useChunkUploader()
 
 	return (
 		<main className="flex-1 overflow-y-auto p-6">
@@ -124,7 +131,7 @@ export default function EpisodeEditor({ episode, actionData }: {
 					/>
 
 					<MinimalEditorField
-						labelProps={{ children: "Description", htmlFor: "description" }}
+						labelProps={{ children: 'Description', htmlFor: 'description' }}
 						initialHTML={episode?.description}
 						onChange={() => {}}
 						errors={fields?.description?.errors}
@@ -139,7 +146,9 @@ export default function EpisodeEditor({ episode, actionData }: {
 							onUploadComplete={(file) => setUploadedFile(file)}
 						/>
 						{uploadedFile && (
-							<p className="text-sm text-gray-600">Audio file uploaded: {uploadedFile}</p>
+							<p className="text-sm text-gray-600">
+								Audio file uploaded: {uploadedFile}
+							</p>
 						)}
 					</div>
 					<input type="hidden" name="audioFile" value={uploadedFile || ''} />
@@ -167,10 +176,7 @@ export default function EpisodeEditor({ episode, actionData }: {
 
 					<div>
 						<Label htmlFor="type">Type</Label>
-						<Select
-							value={selectedType}
-							onValueChange={setSelectedType}
-						>
+						<Select value={selectedType} onValueChange={setSelectedType}>
 							<SelectTrigger id="type">
 								<SelectValue placeholder="Select a Type" />
 							</SelectTrigger>
@@ -215,7 +221,7 @@ export default function EpisodeEditor({ episode, actionData }: {
 						<Switch
 							id="explicit"
 							defaultChecked={episode?.explicit ?? false}
-							{...getInputProps(fields.explicit, { type: "checkbox" })}
+							{...getInputProps(fields.explicit, { type: 'checkbox' })}
 							onChange={(e) => fields.explicit.onChange(e.target.checked)}
 						/>
 						<span className="px-4"></span>
@@ -223,30 +229,27 @@ export default function EpisodeEditor({ episode, actionData }: {
 						<Switch
 							id="is-published"
 							defaultChecked={episode?.isPublished ?? false}
-							{...getInputProps(fields.isPublished, { type: "checkbox" })}
+							{...getInputProps(fields.isPublished, { type: 'checkbox' })}
 							onChange={(e) => fields.isPublished.onChange(e.target.checked)}
 						/>
 					</div>
 
 					<hr />
 
-
-					<div className="flex space-x-4">
+					<div className="flex gap-4">
 						<Button type="submit">Save</Button>
 						<Link to={`../`}>
 							<Button variant="outline">Cancel</Button>
 						</Link>
-						{episode && (
-							<span className="ml-auto">
-                <DeleteDialog
-									verificationString={episode?.title}
-									placeholder="Enter podcast title"
-								/>
-              </span>
-						)}
+
+						<span className="ml-auto">
+							<DeleteDialog
+								displayTriggerButton={episode != null}
+							/>
+						</span>
 					</div>
 				</Form>
 			</FormProvider>
 		</main>
-	);
+	)
 }

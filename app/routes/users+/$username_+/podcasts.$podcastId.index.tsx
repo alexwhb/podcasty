@@ -78,28 +78,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
-	const userId = await requireUserId(request)
+	// const userId = await requireUserId(request)
 	const formData = await request.formData()
 	const intent = formData.get('intent')
 
-	if (intent === 'delete') {
-		const episodeId = formData.get('episodeId') as string
-
-		// Ensure the user owns the podcast before deleting
-		const podcast = await prisma.podcast.findUnique({
-			where: { id: params.podcastId, ownerId: userId },
-		})
-
-		if (!podcast) {
-			throw new Response('Podcast not found', { status: 404 })
-		}
-
-		await prisma.episode.delete({
-			where: { id: episodeId },
-		})
-
-		return null
-	} else if (intent === 'publish') {
+	 if (intent === 'publish') {
 		const episodeId = formData.get('episodeId') as string
 		const isPublished = formData.get('isPublished') === 'true'
 		await prisma.episode.update({
@@ -134,7 +117,10 @@ export default function PodcastInfo() {
 
 	// Add delete dialog state
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-	const [episodeToDelete, setEpisodeToDelete] = useState<{id: string, title: string} | null>(null)
+	const [episodeToDelete, setEpisodeToDelete] = useState<{
+		id: string
+		title: string
+	} | null>(null)
 
 	// Whenever the loader returns new episodes, update our local list.
 	// When currentPage is 1 (i.e. a new search or sort occurred) we reset;
@@ -187,16 +173,6 @@ export default function PodcastInfo() {
 		updateSearchParams({ page: currentPage + 1 })
 	}, [currentPage, updateSearchParams])
 
-	// Memoized delete handler using fetcher to submit a form.
-	const handleDeleteEpisode = useCallback(
-		async (episodeId: string) => {
-			const formData = new FormData()
-			formData.set('intent', 'delete')
-			formData.set('episodeId', episodeId)
-			await fetcher.submit(formData, { method: 'post' })
-		},
-		[fetcher],
-	)
 
 	const onPublishUnpublish = useCallback(
 		async (episodeId: string, isPublished: boolean) => {
@@ -217,18 +193,13 @@ export default function PodcastInfo() {
 	}, [handleSearch])
 
 	// Memoized delete handlers
-	const handleDeleteDialogOpen = useCallback((episode: {id: string, title: string}) => {
-		setEpisodeToDelete(episode)
-		setDeleteDialogOpen(true)
-	}, [])
-
-	const handleDeleteConfirm = useCallback(async () => {
-		if (!episodeToDelete) return
-		
-		await handleDeleteEpisode(episodeToDelete.id)
-		setEpisodeToDelete(null)
-		setDeleteDialogOpen(false)
-	}, [episodeToDelete, handleDeleteEpisode])
+	const handleDeleteDialogOpen = useCallback(
+		(episode: { id: string; title: string }) => {
+			setEpisodeToDelete(episode)
+			setDeleteDialogOpen(true)
+		},
+		[],
+	)
 
 	return (
 		<div className="mx-auto w-full max-w-4xl overflow-y-auto p-6">
@@ -297,15 +268,13 @@ export default function PodcastInfo() {
 			/>
 
 			{/* Delete Dialog */}
-			{episodeToDelete && (
-				<DeleteDialog 
-					verificationString={episodeToDelete.title}
-					placeholder="Enter episode title"
-					isOpen={deleteDialogOpen}
-					onOpenChange={setDeleteDialogOpen}
-					onDelete={handleDeleteConfirm}
-				/>
-			)}
+
+			<DeleteDialog
+				displayTriggerButton={false}
+				open={deleteDialogOpen}
+				onOpenChange={setDeleteDialogOpen}
+				additionalFormData={{ episodeId: episodeToDelete?.id || '' }}
+			/>
 		</div>
 	)
 }
