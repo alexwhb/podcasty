@@ -220,7 +220,7 @@ function App() {
 					<Outlet />
 				</div>
 
-				<div className="container flex justify-end pb-5">
+				<div className="fixed bottom-5 right-5 z-50">
 					<ThemeSwitch userPreference={data.requestInfo.userPrefs.theme} />
 				</div>
 			</div>
