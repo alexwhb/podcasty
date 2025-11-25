@@ -12,6 +12,10 @@ import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getErrorMessage } from '#app/utils/misc'
 import { type Route } from './+types/podcasts.index'
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import path from 'node:path'
+import fs from 'node:fs/promises'
+import { parseBuffer } from 'music-metadata'
 
 const ImportPodcastSchema = z.object({
   rssUrl: z.string().url('Please enter a valid URL'),
@@ -33,6 +37,111 @@ async function downloadAndConvertToBlob(url: string) {
   } catch (error) {
     console.error('Error downloading file:', error);
     return null;
+  }
+}
+
+type StorageConfig =
+  | { kind: 's3'; client: S3Client; bucket: string; publicBaseUrl?: string }
+  | { kind: 'fs'; baseDir: string; publicBaseUrl?: string }
+
+function createStorageConfig(): StorageConfig {
+  if (process.env.USE_S3 === 'true') {
+    if (!process.env.S3_BUCKET || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      throw new Error('S3 storage selected but S3_BUCKET / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY not set')
+    }
+    return {
+      kind: 's3',
+      bucket: process.env.S3_BUCKET,
+      publicBaseUrl: process.env.S3_PUBLIC_URL,
+      client: new S3Client({
+        region: process.env.S3_REGION || 'us-east-1',
+        endpoint: process.env.S3_ENDPOINT,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+        forcePathStyle: Boolean(process.env.S3_ENDPOINT),
+      }),
+    }
+  }
+
+  return {
+    kind: 'fs',
+    baseDir: path.join(process.cwd(), 'uploads', 'audio'),
+    publicBaseUrl: '/uploads/audio',
+  }
+}
+
+async function storeAudioFile({
+  podcastId,
+  episodeId,
+  audioUrl,
+  storage,
+}: {
+  podcastId: string
+  episodeId: string
+  audioUrl: string
+  storage: StorageConfig
+}) {
+  try {
+    const res = await fetch(audioUrl)
+    if (!res.ok || !res.body) throw new Error(`Failed to fetch audio: ${res.status} ${res.statusText}`)
+    const arrayBuffer = await res.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const contentType = res.headers.get('content-type') ?? 'audio/mpeg'
+    const fileNameFromUrl = (() => {
+      try {
+        const parsed = new URL(audioUrl)
+        const parts = parsed.pathname.split('/').filter(Boolean)
+        return parts[parts.length - 1] || 'audio.mp3'
+      } catch {
+        return 'audio.mp3'
+      }
+    })()
+    const storageKey = `${podcastId}/${fileNameFromUrl}`
+
+    let publicUrl = audioUrl
+    if (storage.kind === 's3') {
+      await storage.client.send(
+        new PutObjectCommand({
+          Bucket: storage.bucket,
+          Key: storageKey,
+          Body: buffer,
+          ContentType: contentType,
+        }),
+      )
+      publicUrl = storage.publicBaseUrl
+        ? `${storage.publicBaseUrl.replace(/\/$/, '')}/${storageKey}`
+        : `s3://${storage.bucket}/${storageKey}`
+    } else {
+      const target = path.join(storage.baseDir, storageKey)
+      await fs.mkdir(path.dirname(target), { recursive: true })
+      await fs.writeFile(target, buffer)
+      publicUrl = storage.publicBaseUrl
+        ? `${storage.publicBaseUrl.replace(/\/$/, '')}/${storageKey}`
+        : target
+    }
+
+    // Try to read duration/format
+    let duration = 0
+    try {
+      const meta = await parseBuffer(buffer, fileNameFromUrl, { duration: true })
+      duration = Math.round(meta.format.duration ?? 0)
+    } catch (err) {
+      console.warn('Failed to parse audio metadata', err)
+    }
+
+    await prisma.episode.update({
+      where: { id: episodeId },
+      data: {
+        audioUrl: publicUrl,
+        audioSize: buffer.length,
+        audioType: contentType,
+        duration,
+      },
+    })
+  } catch (err) {
+    console.error(`Audio download failed for episode ${episodeId}`, err)
   }
 }
 
@@ -106,8 +215,13 @@ export async function action({ request }: Route.LoaderArgs) {
 
     // Handle episodes if enabled
     if (importEpisodes) {
+      const storageConfig = createStorageConfig()
       const episodes = Array.isArray(channel.item) ? channel.item : [channel.item]
       for (const episode of episodes) {
+        const enclosureUrl = episode.enclosure?.url ?? episode.enclosure?.$?.url ?? ''
+        const enclosureLength = episode.enclosure?.length ?? episode.enclosure?.$?.length ?? '0'
+        const enclosureType = episode.enclosure?.type ?? episode.enclosure?.$?.type ?? 'audio/mpeg'
+
         // Handle episode image if enabled
         let episodeImage = undefined;
         if (importImages && episode['itunes:image']?.$?.href) {
@@ -139,14 +253,14 @@ export async function action({ request }: Route.LoaderArgs) {
           }
         }
 
-        await prisma.episode.create({
+        const createdEpisode = await prisma.episode.create({
           data: {
             title: episode.title,
             description: episode.description,
             link: episode.link,
-            audioUrl: episode.enclosure?.url || '',
-            audioSize: parseInt(episode.enclosure?.length || '0', 10),
-            audioType: episode.enclosure?.type || 'audio/mpeg',
+            audioUrl: enclosureUrl || '',
+            audioSize: parseInt(enclosureLength, 10),
+            audioType: enclosureType,
             guid: episode.guid?._ || episode.guid || '',
             pubDate: episode.pubDate ? new Date(episode.pubDate) : new Date(),
             duration: parseInt(episode['itunes:duration'] || '0', 10),
@@ -158,6 +272,16 @@ export async function action({ request }: Route.LoaderArgs) {
             transcript: transcriptBlob,
           },
         })
+
+        // Kick off audio download/storage in the background so the response isn't blocked
+        if (enclosureUrl) {
+          void storeAudioFile({
+            podcastId: podcast.id,
+            episodeId: createdEpisode.id,
+            audioUrl: enclosureUrl,
+            storage: storageConfig,
+          })
+        }
       }
     }
 
@@ -178,9 +302,7 @@ export default function ImportPodcast({ actionData }: { actionData?: any }) {
     constraint: getZodConstraint(ImportPodcastSchema),
     lastResult: actionData?.result,
     onValidate({ formData }) {
-      const test =  parseWithZod(formData, { schema: ImportPodcastSchema })
-      console.log(test)
-      return test
+      return parseWithZod(formData, { schema: ImportPodcastSchema })
     },
     defaultValue: {
       importImages: true,

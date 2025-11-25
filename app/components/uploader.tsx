@@ -3,6 +3,7 @@ import { Form } from 'react-router';
 import { Button } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
 import { Progress } from '#app/components/ui/progress';
+import { Label } from '#app/components/ui/label.tsx'
 
 type ResponseData = {
   status: string;
@@ -36,10 +37,11 @@ export default function Uploader({
   }, [uploadComplete, onUploadComplete]);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Upload Audio File</h1>
+    <div className="space-y-2">
       <Form onSubmit={(e) => { e.preventDefault(); handleUpload(); }} className="space-y-4">
+        <Label htmlFor="audioFile">Upload Audio File</Label>
         <Input
+          id="audioFile"
           type="file"
           accept=".mp3,.wav,.aac,.m4a"
           onChange={handleFileChange}

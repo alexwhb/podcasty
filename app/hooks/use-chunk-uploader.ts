@@ -7,14 +7,14 @@ type ResponseData = {
   metadata?: any;
 };
 
-export function useChunkUploader() {
+export function useChunkUploader({username, podcastId, episodeId}: {username: string, podcastId: string, episodeId: string})   {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadComplete, setUploadComplete] = useState<ResponseData | null>(null);
 
   async function checkResumeStatus(uploadId: string) {
-    const response = await fetch(`/test/upload/resume?uploadId=${uploadId}`);
+    const response = await fetch(`/users/${username}/podcasts/${podcastId}/episode/${episodeId}/upload/resume?uploadId=${uploadId}`);
     const data = await response.json() as { uploadedChunks: number[] };
     return data.uploadedChunks || [];
   }
@@ -22,7 +22,7 @@ export function useChunkUploader() {
   async function uploadChunk(chunkData: any) {
     const formData = new FormData();
     Object.entries(chunkData).forEach(([key, value]) => formData.append(key, value as any));
-    const response = await fetch("/test/upload/chunk", { method: "POST", body: formData });
+    const response = await fetch("users/${username}/podcasts/${podcastId}/episode/${episodeId}/upload/chunk", { method: "POST", body: formData });
     if (!response.ok) throw new Error("Chunk upload failed");
 
     const responseData = await response.json() as ResponseData;

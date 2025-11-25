@@ -9,7 +9,7 @@ import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import { format } from 'date-fns/format'
 import { CalendarIcon } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
-import { Form, Link } from 'react-router'
+import { Form, Link, useParams } from 'react-router'
 import { z } from 'zod'
 import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
 import DeleteDialog from '#app/components/delete-dialog.tsx'
@@ -51,6 +51,15 @@ export const EpisodeEditorSchema = z.object({
 	audioFile: z.string().optional(), // Added for uploaded file
 })
 
+function formatDuration(durationSeconds?: number | null) {
+	if (!durationSeconds || durationSeconds <= 0) return '—'
+	const hrs = Math.floor(durationSeconds / 3600)
+	const mins = Math.floor((durationSeconds % 3600) / 60)
+	const secs = Math.floor(durationSeconds % 60)
+	const parts = [hrs, mins, secs].map((n) => n.toString().padStart(2, '0'))
+	return parts.join(':')
+}
+
 export default function EpisodeEditor({
 	episode,
 	actionData,
@@ -67,6 +76,13 @@ export default function EpisodeEditor({
 	const [episodeNum, setEpisode] = useState<number | null>(null)
 	const [seasonNum, setSeasonNum] = useState<number | null>(null)
 	const [uploadedFile, setUploadedFile] = useState<string | null>(null)
+	const hasExistingAudio = Boolean(episode?.audioUrl)
+	const [isReplacingAudio, setIsReplacingAudio] = useState(false)
+	const existingAudioSize =
+		episode?.audioSize != null
+			? `${(episode.audioSize / 1024 / 1024).toFixed(1)} MB`
+			: null
+	const existingAudioDuration = formatDuration(episode?.duration)
 
 	const formattedDate = useMemo(
 		() => format(selectedDate, 'dd-MM-yyyy HH:mm:ss'),
@@ -89,7 +105,6 @@ export default function EpisodeEditor({
 			episode: episode?.episode,
 			isPublished: episode?.isPublished || false,
 			episodeType: episode?.type || 'full',
-			audioFile: episode?.audioFile || '', // Assuming episode might have an audioFile field
 		}),
 		[episode],
 	)
@@ -110,16 +125,118 @@ export default function EpisodeEditor({
 	}, [])
 
 	// Use the uploader hook
-	const uploaderProps = useChunkUploader()
+	const params = useParams()
+	const uploaderProps = useChunkUploader({
+		username: params.username!,
+		podcastId: params.podcastId!,
+		episodeId: params.episodeId!
+	})
 
 	return (
-		<main className="flex-1 overflow-y-auto p-6">
-			<h1 className="mb-4 text-2xl font-bold">Edit Episode</h1>
+		<main className="p-6 pb-24 max-w-4xl mx-auto">
+			<h1 className="mb-4 text-2xl font-bold">
+				{episode ? 'Edit' : 'Create'} Episode
+			</h1>
 			<FormProvider context={form.context}>
 				<Form method="POST" {...getFormProps(form)} className="space-y-6">
 					{episode ? (
 						<input type="hidden" name="id" value={episode?.id} />
 					) : null}
+
+					{/* Uploader Section */}
+					<div className="space-y-4">
+						{hasExistingAudio ? (
+							<div className="rounded-md border p-4 shadow-sm">
+								{!isReplacingAudio && (
+									<>
+										<div className="flex items-center justify-between gap-3">
+											<div className="text-sm font-semibold text-foreground">
+												Current audio
+											</div>
+											{episode?.audioType ? (
+												<span className="text-xs text-muted-foreground">
+													{episode.audioType}
+												</span>
+											) : null}
+										</div>
+										{episode?.audioUrl ? (
+											<audio
+												controls
+												src={episode.audioUrl}
+												className="mt-2 w-full"
+												preload="metadata"
+											/>
+										) : null}
+										<div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+											{existingAudioSize ? <span>{existingAudioSize}</span> : null}
+											{existingAudioDuration !== '—' ? (
+												<span>{existingAudioDuration}</span>
+											) : null}
+										</div>
+										<div className="mt-3">
+											<Button
+												type="button"
+												variant="secondary"
+												onClick={() => setIsReplacingAudio(true)}
+											>
+												Replace audio file
+											</Button>
+										</div>
+									</>
+								)}
+								{isReplacingAudio && (
+									<div className="space-y-3">
+										<div className="text-sm font-semibold text-foreground">
+											Replace audio file
+										</div>
+										<div className="space-y-2">
+											<Uploader
+												{...uploaderProps}
+												onUploadComplete={(file) => setUploadedFile(file)}
+											/>
+											{uploadedFile && (
+												<p className="text-sm text-muted-foreground">
+													Audio file uploaded: {uploadedFile}
+												</p>
+											)}
+											<div className="flex items-center gap-2">
+												<Button
+													type="button"
+													variant="ghost"
+													onClick={() => {
+														setIsReplacingAudio(false)
+														setUploadedFile(null)
+													}}
+												>
+													Cancel
+												</Button>
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+						) : (
+							<p className="text-sm text-muted-foreground">
+								No audio uploaded yet. Upload a file to attach audio to this episode.
+							</p>
+						)}
+						{!hasExistingAudio && (
+							<div className="space-y-2">
+								<div className="text-sm font-medium">Upload audio file</div>
+								<Uploader
+									{...uploaderProps}
+									onUploadComplete={(file) => setUploadedFile(file)}
+								/>
+								{uploadedFile && (
+									<p className="text-sm text-gray-600">
+										Audio file uploaded: {uploadedFile}
+									</p>
+								)}
+							</div>
+						)}
+					</div>
+
+					<hr />
 
 					<Field
 						labelProps={{ children: 'Title' }}
@@ -137,20 +254,6 @@ export default function EpisodeEditor({
 						errors={fields?.description?.errors}
 					/>
 
-					<hr />
-
-					{/* Uploader Section */}
-					<div className="space-y-4">
-						<Uploader
-							{...uploaderProps}
-							onUploadComplete={(file) => setUploadedFile(file)}
-						/>
-						{uploadedFile && (
-							<p className="text-sm text-gray-600">
-								Audio file uploaded: {uploadedFile}
-							</p>
-						)}
-					</div>
 					<input type="hidden" name="audioFile" value={uploadedFile || ''} />
 
 					<hr />
@@ -236,15 +339,17 @@ export default function EpisodeEditor({
 
 					<hr />
 
-					<div className="flex gap-4">
+					<div className="flex gap-4 pb-10">
 						<Button type="submit">Save</Button>
 						<Link to={`../`}>
 							<Button variant="outline">Cancel</Button>
 						</Link>
 
 						<span className="ml-auto">
-							<DeleteDialog
+							<DeleteDialogWithInput
 								displayTriggerButton={episode != null}
+								verificationString={episode?.title}
+								placeholder="Enter podcast title"
 							/>
 						</span>
 					</div>

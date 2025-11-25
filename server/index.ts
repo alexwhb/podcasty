@@ -68,6 +68,9 @@ app.use(compression())
 // http://expressjs.com/en/advanced/best-practice-security.html#at-a-minimum-disable-x-powered-by-header
 app.disable('x-powered-by')
 
+// Serve uploaded assets (audio/files) in both dev and prod
+app.use('/uploads', express.static('uploads', { maxAge: '1h' }))
+
 if (viteDevServer) {
 	app.use(viteDevServer.middlewares)
 } else {

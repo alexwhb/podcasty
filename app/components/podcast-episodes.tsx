@@ -157,7 +157,15 @@ export default function PodcastEpisodes({
 					<div className="flex-grow">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<div className="flex items-center gap-2">
-								<h2 className="text-lg font-bold">{episode.title}</h2>
+								<h2 className="text-lg font-bold">
+									<Link
+										to={`./episode/${episode.id}/edit`}
+										prefetch="intent"
+										className="hover:underline"
+									>
+										{episode.title}
+									</Link>
+								</h2>
 								{episode.explicit && (
 									<span className="rounded-full bg-red-200 px-2 py-0.5 text-xs font-medium text-red-800">
 										Explicit
