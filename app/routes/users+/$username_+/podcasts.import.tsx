@@ -12,6 +12,7 @@ import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getErrorMessage } from '#app/utils/misc'
 import { type Route } from './+types/podcasts.index'
+import { ensureUniquePodcastSlug } from '#app/utils/slug.server.ts'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import path from 'node:path'
 import fs from 'node:fs/promises'
@@ -189,8 +190,10 @@ export async function action({ request }: Route.LoaderArgs) {
     }
 
     // Create podcast
+    const slug = await ensureUniquePodcastSlug(channel.title || 'podcast')
     const podcast = await prisma.podcast.create({
       data: {
+        slug,
         title: channel.title,
         description: channel.description,
         link: channel.link,

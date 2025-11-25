@@ -7,6 +7,7 @@ import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { uploadHandler } from '#app/utils/file-uploads.server.ts'
 import { MAX_UPLOAD_SIZE } from './__podcast-editor.tsx'
+import { ensureUniquePodcastSlug } from '#app/utils/slug.server.ts'
 
 function imageHasFile(image: { file?: File | null }): image is { file: File } {
 	return Boolean(image.file && image.file.size > 0)
@@ -96,9 +97,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	const existingPodcast = podcastId
 		? await prisma.podcast.findUnique({
 				where: { id: podcastId },
-				select: { image: { select: { id: true } } },
+				select: { image: { select: { id: true } }, slug: true },
 			})
 		: null
+	const slug =
+		existingPodcast?.slug ?? (await ensureUniquePodcastSlug(title))
 
 	const updatedPodcast = await prisma.podcast.upsert({
 		select: { id: true },
@@ -106,6 +109,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		create: {
 			// Your create logic remains the same
 			ownerId: userId,
+			slug,
 			title,
 			description,
 			author,
@@ -160,6 +164,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 									},
 								}
 						: undefined, // No change if no image update provided
+			slug,
 		},
 	})
 

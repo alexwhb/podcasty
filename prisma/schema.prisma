@@ -171,6 +171,7 @@ model Connection {
 
 model Podcast {
   id            String   @id @default(cuid())
+  slug          String   @unique
   title         String
   link          String
   description   String
