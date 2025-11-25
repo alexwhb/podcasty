@@ -1,6 +1,6 @@
 import { ArrowUpDown, PlusIcon } from 'lucide-react'
-import { useEffect } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useFetcher } from 'react-router'
 import EpisodeStatusIndicator from '#app/components/episode-status-indicator.tsx'
 import { Button } from '#app/components/ui/button'
 import {
@@ -11,6 +11,14 @@ import {
 } from '#app/components/ui/dropdown-menu'
 import { Input } from '#app/components/ui/input'
 import { getEpisodeImgSrc } from '#app/utils/misc.tsx'
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '#app/components/ui/dialog'
+import { Textarea } from '#app/components/ui/textarea'
 
 interface Episode {
 	id: string
@@ -23,6 +31,7 @@ interface Episode {
 	isPublished: boolean
 	number?: number
 	image?: { id: string }
+	transcript?: { id: string } | null
 }
 
 interface Podcast {
@@ -97,6 +106,33 @@ export default function PodcastEpisodes({
 		const newSort = currentSort === 'asc' ? 'desc' : 'asc'
 		onSortToggle(newSort)
 	}
+
+	const transcriptFetcher = useFetcher<{ transcript?: string }>()
+	const [transcriptModal, setTranscriptModal] = useState<{
+		open: boolean
+		episode: Episode | null
+	}>({ open: false, episode: null })
+
+	const [draftTranscript, setDraftTranscript] = useState('')
+
+	const openTranscriptModal = (episode: Episode) => {
+		setTranscriptModal({ open: true, episode })
+		setDraftTranscript('')
+		if (episode.transcript?.id) {
+			transcriptFetcher.load(`/resources/episode-transcript/${episode.id}`)
+		}
+	}
+
+	useEffect(() => {
+		if (transcriptFetcher.data?.transcript !== undefined) {
+			setDraftTranscript(transcriptFetcher.data.transcript)
+		}
+	}, [transcriptFetcher.data])
+
+	const hasTranscript = useMemo(
+		() => Boolean(transcriptModal.episode?.transcript?.id),
+		[transcriptModal.episode],
+	)
 
 	return (
 		<div className="mx-auto max-w-4xl space-y-6">
@@ -221,6 +257,14 @@ export default function PodcastEpisodes({
 										<>Publish</>
 									)}
 								</DropdownMenuItem>
+								<DropdownMenuItem
+									onSelect={(e) => {
+										e.preventDefault()
+										openTranscriptModal(episode)
+									}}
+								>
+									{episode.transcript ? 'View Transcript' : 'Add Transcript'}
+								</DropdownMenuItem>
 								<DropdownMenuItem asChild>
 									<a href="#">Share</a>
 								</DropdownMenuItem>
@@ -238,6 +282,115 @@ export default function PodcastEpisodes({
 					</Button>
 				</div>
 			)}
+
+			{transcriptModal.open ? (
+				<Dialog
+					open={transcriptModal.open}
+					onOpenChange={(open) =>
+						setTranscriptModal((prev) => ({ ...prev, open }))
+					}
+				>
+					<DialogContent className="max-w-3xl">
+						<DialogHeader>
+							<DialogTitle>
+								{hasTranscript ? 'Transcript' : 'Add transcript'}
+							</DialogTitle>
+						</DialogHeader>
+
+						{!hasTranscript && draftTranscript === '' ? (
+							<div className="space-y-3">
+								<p className="text-sm text-muted-foreground">
+									No transcript yet. Choose an option:
+								</p>
+								<div className="flex flex-wrap gap-3">
+									<Button
+										variant="secondary"
+										onClick={() =>
+											setDraftTranscript(
+												'[Auto-generated mock transcript]\n\nThis is a placeholder transcript generated for preview purposes.',
+											)
+										}
+									>
+										Auto-generate (mock)
+									</Button>
+									<Button
+										variant="outline"
+										onClick={() => setDraftTranscript('')}
+									>
+										Add manually
+									</Button>
+								</div>
+							</div>
+						) : null}
+
+						{hasTranscript || draftTranscript !== '' ? (
+							<div className="space-y-2">
+								<label className="text-sm font-medium">Transcript</label>
+								<Textarea
+									value={draftTranscript}
+									onChange={(e) => setDraftTranscript(e.target.value)}
+									rows={12}
+									className="w-full"
+									placeholder="Paste or type transcript here..."
+								/>
+							</div>
+						) : null}
+
+						<DialogFooter className="flex items-center justify-between">
+							{hasTranscript ? (
+								<Button
+									variant="ghost"
+									className="text-destructive"
+									onClick={() => {
+										if (!transcriptModal.episode) return
+										transcriptFetcher.submit(
+											{},
+											{
+												method: 'delete',
+												action: `/resources/episode-transcript/${transcriptModal.episode.id}`,
+											},
+										)
+										setDraftTranscript('')
+										setTranscriptModal((prev) => ({ ...prev, open: false }))
+									}}
+									title="Delete transcript"
+								>
+									🗑
+								</Button>
+							) : (
+								<span />
+							)}
+
+							<div className="flex gap-2">
+								<Button
+									variant="outline"
+									onClick={() =>
+										setTranscriptModal({ open: false, episode: null })
+									}
+								>
+									Close
+								</Button>
+								{(hasTranscript || draftTranscript) && (
+									<Button
+										onClick={() => {
+											if (!transcriptModal.episode) return
+											const formData = new FormData()
+											formData.set('transcript', draftTranscript)
+											transcriptFetcher.submit(formData, {
+												method: 'post',
+												action: `/resources/episode-transcript/${transcriptModal.episode.id}`,
+											})
+											setTranscriptModal((prev) => ({ ...prev, open: false }))
+										}}
+									>
+										Save
+									</Button>
+								)}
+							</div>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			) : null}
 		</div>
 	)
 }

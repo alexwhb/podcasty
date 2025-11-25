@@ -53,6 +53,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 			episode: true,
 			isPublished: true,
 			image: { select: { id: true, updatedAt: true } },
+			transcript: { select: { id: true } },
 		},
 		orderBy: { pubDate: sort },
 		skip: (page - 1) * PAGE_SIZE,

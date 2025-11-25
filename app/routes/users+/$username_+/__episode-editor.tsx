@@ -7,18 +7,17 @@ import {
 } from '@conform-to/react'
 import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import { format } from 'date-fns/format'
-import { CalendarIcon } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
-import { Form, Link, useParams } from 'react-router'
+import { CalendarIcon, Trash2  } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Form, Link, useFetcher, useParams } from 'react-router'
 import { z } from 'zod'
 import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
-import DeleteDialog from '#app/components/delete-dialog.tsx'
 import {
 	Field,
 	MinimalEditorField,
 	NumberField,
 } from '#app/components/forms.tsx'
-import { Button } from '#app/components/ui/button'
+import { Button, Button as UIButton  } from '#app/components/ui/button'
 import { Calendar } from '#app/components/ui/calendar'
 import { Input } from '#app/components/ui/input'
 import { Label } from '#app/components/ui/label'
@@ -35,6 +34,7 @@ import {
 	SelectValue,
 } from '#app/components/ui/select.tsx'
 import { Switch } from '#app/components/ui/switch'
+import { Textarea } from '#app/components/ui/textarea'
 import Uploader from '#app/components/uploader.tsx'
 import { useChunkUploader } from '#app/hooks/use-chunk-uploader.ts'
 import { type Info } from './+types/podcasts.$podcastId.episode.$episodeId.new'
@@ -131,6 +131,21 @@ export default function EpisodeEditor({
 		podcastId: params.podcastId!,
 		episodeId: params.episodeId!
 	})
+
+	const transcriptFetcher = useFetcher<{ transcript?: string }>()
+	const [transcriptDraft, setTranscriptDraft] = useState('')
+
+	useEffect(() => {
+		if (episode?.id) {
+			transcriptFetcher.load(`/resources/episode-transcript/${episode.id}`)
+		}
+	}, [episode?.id])
+
+	useEffect(() => {
+		if (transcriptFetcher.data?.transcript !== undefined) {
+			setTranscriptDraft(transcriptFetcher.data.transcript)
+		}
+	}, [transcriptFetcher.data])
 
 	return (
 		<main className="p-6 pb-24 max-w-4xl mx-auto">
@@ -237,6 +252,62 @@ export default function EpisodeEditor({
 					</div>
 
 					<hr />
+
+					<div className="space-y-3">
+						<div className="flex items-center justify-between">
+							<Label className="text-base font-semibold">Transcript</Label>
+							{transcriptDraft && (
+								<UIButton
+									type="button"
+									variant="ghost"
+									size="icon"
+									title="Delete transcript"
+									onClick={() => {
+										if (!episode?.id) return
+										transcriptFetcher.submit(
+											{},
+											{
+												method: 'delete',
+												action: `/resources/episode-transcript/${episode.id}`,
+											},
+										)
+										setTranscriptDraft('')
+									}}
+								>
+									<Trash2 className="h-4 w-4" />
+								</UIButton>
+							)}
+						</div>
+						<Textarea
+							rows={10}
+							value={transcriptDraft}
+							onChange={(e) => setTranscriptDraft(e.target.value)}
+							placeholder="Add or edit transcript..."
+						/>
+						<div className="flex justify-end gap-2">
+							<UIButton
+								type="button"
+								variant="outline"
+								onClick={() => setTranscriptDraft('')}
+							>
+								Clear
+							</UIButton>
+							<UIButton
+								type="button"
+								onClick={() => {
+									if (!episode?.id) return
+									const formData = new FormData()
+									formData.set('transcript', transcriptDraft)
+									transcriptFetcher.submit(formData, {
+										method: 'post',
+										action: `/resources/episode-transcript/${episode.id}`,
+									})
+								}}
+							>
+								Save transcript
+							</UIButton>
+						</div>
+					</div>
 
 					<Field
 						labelProps={{ children: 'Title' }}
