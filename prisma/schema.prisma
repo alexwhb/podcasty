@@ -26,6 +26,7 @@ model User {
   sessions    Session[]
   connections Connection[]
   podcasts    Podcast[]
+  passkeys    Passkey[]
 }
 
 model Note {
@@ -50,8 +51,9 @@ model Note {
 model NoteImage {
   id          String  @id @default(cuid())
   altText     String?
-  contentType String
-  blob        Bytes
+  contentType String?
+  blob        Bytes?
+  objectKey   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -66,8 +68,9 @@ model NoteImage {
 model UserImage {
   id          String  @id @default(cuid())
   altText     String?
-  contentType String
-  blob        Bytes
+  contentType String?
+  blob        Bytes?
+  objectKey   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -169,6 +172,23 @@ model Connection {
   @@unique([providerName, providerId])
 }
 
+model Passkey {
+  id             String   @id
+  aaguid         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  publicKey      Bytes
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId         String
+  webauthnUserId String
+  counter        BigInt
+  deviceType     String // 'singleDevice' or 'multiDevice'
+  backedUp       Boolean
+  transports     String? // Stored as comma-separated values
+
+  @@index(userId)
+}
+
 model Podcast {
   id            String   @id @default(cuid())
   slug          String   @unique
@@ -204,8 +224,9 @@ model Podcast {
 
 model PodcastImage {
   id          String @id @default(cuid())
-  contentType String
-  blob        Bytes
+  contentType String?
+  blob        Bytes?
+  objectKey   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -249,8 +270,9 @@ model Episode {
 
 model EpisodeImage {
   id          String @id @default(cuid())
-  contentType String
-  blob        Bytes
+  contentType String?
+  blob        Bytes?
+  objectKey   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
