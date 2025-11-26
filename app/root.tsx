@@ -44,12 +44,6 @@ export const links: Route.LinksFunction = () => {
 	return [
 		// Preload svg sprite as a resource to avoid render blocking
 		{ rel: 'preload', href: iconsHref, as: 'image' },
-		{
-			rel: 'icon',
-			href: '/favicon.ico',
-			sizes: '48x48',
-		},
-		{ rel: 'icon', type: 'image/svg+xml', href: faviconAssetUrl },
 		{ rel: 'apple-touch-icon', href: appleTouchIconAssetUrl },
 		{
 			rel: 'manifest',
@@ -222,6 +216,8 @@ function Document({
 				<Links />
 				<link
 					rel="icon"
+					type="image/png"
+					sizes="any"
 					href={faviconHref ?? faviconAssetUrl ?? '/favicon.ico'}
 				/>
 			</head>
