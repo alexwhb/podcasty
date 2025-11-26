@@ -25,7 +25,7 @@ export const handle: SEOHandle = {
 const LoginFormSchema = z.object({
 	username: UsernameSchema,
 	password: PasswordSchema,
-	redirectTo: z.string().optional(),
+	redirectTo: z.string().optional().default('/users/me/podcasts'),
 	remember: z.boolean().optional(),
 })
 
