@@ -3,6 +3,8 @@ export default {
 	// Defaults to true. Set to false to enable SPA for all routes.
 	ssr: true,
 
+	routeDiscovery: { mode: 'initial' },
+
 	future: {
 		unstable_optimizeDeps: true,
 	},

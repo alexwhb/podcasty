@@ -28,3 +28,22 @@ node_modules
 # react router v7 generated types
 .react-router
 /uploads
+
+
+# Ignore all by default
+.idea/**
+
+# Allow shared project settings
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/dictionaries/
+!.idea/runConfigurations/
+!.idea/fileTemplates/
+
+# Still ignore volatile/user files if they appear
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/**/workspace.xml
+.idea/**/tasks.xml
