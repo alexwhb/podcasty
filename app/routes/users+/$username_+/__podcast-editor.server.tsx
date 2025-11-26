@@ -125,6 +125,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			locked,
 			guid: uuidv4(),
 			license: author,
+			isSingleWebsite,
 		},
 		update: {
 			title,

@@ -122,6 +122,9 @@ export async function signup({
 	password: string
 }) {
 	const hashedPassword = await getPasswordHash(password)
+	const userCount = await prisma.user.count()
+	const baseRoles = [{ name: 'user' } as const]
+	const roles = userCount === 0 ? [...baseRoles, { name: 'admin' } as const] : baseRoles
 
 	const session = await prisma.session.create({
 		data: {
@@ -131,7 +134,7 @@ export async function signup({
 					email: email.toLowerCase(),
 					username: username.toLowerCase(),
 					name,
-					roles: { connect: { name: 'user' } },
+					roles: { connect: roles },
 					password: {
 						create: {
 							hash: hashedPassword,
@@ -161,12 +164,16 @@ export async function signupWithConnection({
 	providerName: Connection['providerName']
 	imageUrl?: string
 }) {
+	const userCount = await prisma.user.count()
+	const baseRoles = [{ name: 'user' } as const]
+	const roles = userCount === 0 ? [...baseRoles, { name: 'admin' } as const] : baseRoles
+
 	const user = await prisma.user.create({
 		data: {
 			email: email.toLowerCase(),
 			username: username.toLowerCase(),
 			name,
-			roles: { connect: { name: 'user' } },
+			roles: { connect: roles },
 			connections: { create: { providerId, providerName } },
 		},
 		select: { id: true },

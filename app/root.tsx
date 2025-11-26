@@ -18,7 +18,6 @@ import { GeneralErrorBoundary } from './components/error-boundary.tsx'
 import { EpicProgress } from './components/progress-bar.tsx'
 import { SearchBar } from './components/search-bar.tsx'
 import { useToast } from './components/toaster.tsx'
-import { Button } from './components/ui/button.tsx'
 import { href as iconsHref } from './components/ui/icon.tsx'
 import { Toaster } from './components/ui/sonner.tsx'
 import { UserDropdown } from './components/user-dropdown.tsx'
@@ -34,7 +33,7 @@ import { prisma } from './utils/db.server.ts'
 import { getEnv } from './utils/env.server.ts'
 import { pipeHeaders } from './utils/headers.server.ts'
 import { honeypot } from './utils/honeypot.server.ts'
-import { combineHeaders, getDomainUrl } from './utils/misc.tsx'
+import { combineHeaders, getDomainUrl, getPodcastImgSrc } from './utils/misc.tsx'
 import { useNonce } from './utils/nonce-provider.ts'
 import { type Theme, getTheme } from './utils/theme.server.ts'
 import { makeTimings, time } from './utils/timing.server.ts'
@@ -99,6 +98,21 @@ export async function loader({ request }: Route.LoaderArgs) {
 				{ timings, type: 'find user', desc: 'find user in root' },
 			)
 		: null
+	const podcastCount = await prisma.podcast.count()
+	let faviconHref: string | null = null
+	if (podcastCount === 1) {
+		const singlePodcast = await prisma.podcast.findFirst({
+			select: {
+				image: { select: { id: true, objectKey: true, updatedAt: true } },
+			},
+		})
+		if (singlePodcast?.image) {
+			faviconHref = getPodcastImgSrc(
+				singlePodcast.image,
+				singlePodcast.image.updatedAt,
+			)
+		}
+	}
 	if (userId && !user) {
 		console.info('something weird happened')
 		// something weird happened... The user is authenticated but we can't find
@@ -107,6 +121,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 	}
 	const { toast, headers: toastHeaders } = await getToast(request)
 	const honeyProps = await honeypot.getInputProps()
+
+	// If there are no users at all, send to signup to create the first admin
+	const userCount = await prisma.user.count()
+	if (!userId && userCount === 0 && new URL(request.url).pathname === '/') {
+		throw redirect('/signup')
+	}
 
 	return data(
 		{
@@ -119,6 +139,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 					theme: getTheme(request),
 				},
 			},
+			isSinglePodcastSite: podcastCount === 1,
+			faviconHref,
 			ENV: getEnv(),
 			toast,
 			honeyProps,
@@ -139,11 +161,13 @@ function Document({
 	nonce,
 	theme = 'light',
 	env = {},
+	faviconHref,
 }: {
 	children: React.ReactNode
 	nonce: string
 	theme?: Theme
 	env?: Record<string, string | undefined>
+	faviconHref?: string | null
 }) {
 	const allowIndexing = ENV.ALLOW_INDEXING !== 'false'
 	const colorScheme = theme === 'dark' ? 'dark' : 'light'
@@ -196,6 +220,10 @@ function Document({
 					<meta name="robots" content="noindex, nofollow" />
 				)}
 				<Links />
+				<link
+					rel="icon"
+					href={faviconHref ?? faviconAssetUrl ?? '/favicon.ico'}
+				/>
 			</head>
 			<body className="bg-background text-foreground">
 				{children}
@@ -218,7 +246,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 	const nonce = useNonce()
 	const theme = useOptionalTheme()
 	return (
-		<Document nonce={nonce} theme={theme} env={data?.ENV}>
+		<Document
+			nonce={nonce}
+			theme={theme}
+			env={data?.ENV}
+			faviconHref={data?.faviconHref}
+		>
 			{children}
 		</Document>
 	)
@@ -229,31 +262,34 @@ function App() {
 	const user = useOptionalUser()
 	const theme = useTheme()
 	const matches = useMatches()
-	const isOnSearchPage = matches.find((m) => m.id === 'routes/users+/index')
-	const searchBar = isOnSearchPage ? null : <SearchBar status="idle" />
+	const isOnSearchPage = matches.find(
+		(m) => m.id === 'routes/users+/index' || m.id === 'routes/podcasts',
+	)
+	const isSinglePodcastSite = data.isSinglePodcastSite
+	const hideHeader = isSinglePodcastSite && data.requestInfo.path === '/'
+	const searchBar =
+		isOnSearchPage || isSinglePodcastSite ? null : (
+			<SearchBar status="idle" action="/podcasts" placeholder="Search podcasts" />
+		)
 	useToast(data.toast)
 
 	return (
 		<>
 			<div className="flex min-h-screen flex-col justify-between">
-				<header className="container py-6">
-					<nav className="flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap md:gap-8">
-						<Logo />
-						<div className="ml-auto hidden max-w-sm flex-1 sm:block">
-							{searchBar}
-						</div>
-						<div className="flex items-center gap-10">
-							{user ? (
-								<UserDropdown />
-							) : (
-								<Button asChild variant="default" size="lg">
-									<Link to="/login">Log In</Link>
-								</Button>
-							)}
-						</div>
-						<div className="block w-full sm:hidden">{searchBar}</div>
-					</nav>
-				</header>
+				{hideHeader ? null : (
+					<header className="container py-6">
+						<nav className="flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap md:gap-8">
+							<Logo />
+							<div className="ml-auto hidden max-w-sm flex-1 sm:block">
+								{searchBar}
+							</div>
+							<div className="flex items-center gap-10">
+								{user ? <UserDropdown /> : null}
+							</div>
+							<div className="block w-full sm:hidden">{searchBar}</div>
+						</nav>
+					</header>
+				)}
 
 				<div className="flex-1">
 					<Outlet />
