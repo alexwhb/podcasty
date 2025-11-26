@@ -36,7 +36,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 			username: true,
 			email: true,
 			image: {
-				select: { id: true },
+				select: { id: true, objectKey: true },
 			},
 			_count: {
 				select: {
@@ -102,7 +102,7 @@ export default function EditUserProfile({ loaderData }: Route.ComponentProps) {
 			<div className="flex justify-center">
 				<div className="relative h-52 w-52">
 					<img
-						src={getUserImgSrc(loaderData.user.image?.id)}
+						src={getUserImgSrc(loaderData.user.image)}
 						alt={loaderData.user.username}
 						className="h-full w-full rounded-full object-cover"
 					/>

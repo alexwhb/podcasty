@@ -5,18 +5,48 @@ import { useSpinDelay } from 'spin-delay'
 import { extendTailwindMerge } from 'tailwind-merge'
 import { extendedTheme } from './extended-theme.ts'
 
-export function getUserImgSrc(imageId?: string | null) {
-	return imageId ? `/resources/user-images/${imageId}` : '/img/user.png'
+type ImageRef =
+	| { id?: string | null; objectKey?: string | null }
+	| string
+	| null
+	| undefined
+
+function resolveImageRef(image?: ImageRef) {
+	if (!image) return { objectKey: null, id: null }
+	if (typeof image === 'string') {
+		return { objectKey: null, id: image }
+	}
+	return { objectKey: image.objectKey ?? null, id: image.id ?? null }
 }
 
-
-export function getPodcastImgSrc(imageId: string, updatedAt?: Date | string | null) {
-  const timestamp = getNumericTimestamp(updatedAt);
-  return `/resources/podcast-image/${imageId}?t=${timestamp}`;
+export function getUserImgSrc(image?: ImageRef) {
+	const { objectKey, id } = resolveImageRef(image)
+	if (objectKey) {
+		return `/resources/images?objectKey=${encodeURIComponent(objectKey)}`
+	}
+	return id ? `/resources/user-images/${id}` : '/img/user.png'
 }
 
-export function getEpisodeImgSrc(imageId: string) {
-	return `/resources/episode-image/${imageId}`
+export function getPodcastImgSrc(
+	image?: ImageRef,
+	updatedAt?: Date | string | null,
+) {
+	const { objectKey, id } = resolveImageRef(image)
+	const timestamp = getNumericTimestamp(updatedAt)
+	if (objectKey) {
+		return `/resources/images?objectKey=${encodeURIComponent(objectKey)}&t=${timestamp}`
+	}
+	return id
+		? `/resources/podcast-image/${id}?t=${timestamp}`
+		: '/img/user.png'
+}
+
+export function getEpisodeImgSrc(image?: ImageRef) {
+	const { objectKey, id } = resolveImageRef(image)
+	if (objectKey) {
+		return `/resources/images?objectKey=${encodeURIComponent(objectKey)}`
+	}
+	return id ? `/resources/episode-image/${id}` : '/img/user.png'
 }
 
 /**

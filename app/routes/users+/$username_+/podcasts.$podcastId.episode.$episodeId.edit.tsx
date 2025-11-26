@@ -15,6 +15,25 @@ export async function loader({
 
 	const episode = await prisma.episode.findUnique({
 		where: { id: params.episodeId },
+		select: {
+			id: true,
+			title: true,
+			description: true,
+			pubDate: true,
+			explicit: true,
+			guid: true,
+			duration: true,
+			episodeType: true,
+			link: true,
+			audioUrl: true,
+			audioSize: true,
+			audioType: true,
+			season: true,
+			episode: true,
+			isPublished: true,
+			podcastId: true,
+			image: { select: { id: true, objectKey: true, updatedAt: true } },
+		},
 	})
 
 	if (!episode) {

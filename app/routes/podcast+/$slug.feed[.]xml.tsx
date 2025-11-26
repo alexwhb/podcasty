@@ -40,7 +40,7 @@ export async function loader({ params }: { params: { slug?: string; '*': string 
 			locked: true,
 			license: true,
 			baseUrl: true,
-			image: { select: { id: true, updatedAt: true } },
+			image: { select: { id: true, objectKey: true, updatedAt: true } },
 			episodes: {
 				where: { isPublished: true },
 				orderBy: { pubDate: 'desc' },
@@ -68,8 +68,8 @@ export async function loader({ params }: { params: { slug?: string; '*': string 
 
 	const channelLink = podcast.baseUrl || podcast.link || ''
 	const podcastImage =
-		podcast.image?.id && podcast.image.updatedAt
-			? getPodcastImgSrc(podcast.image.id, podcast.image.updatedAt)
+		podcast.image && podcast.image.updatedAt
+			? getPodcastImgSrc(podcast.image, podcast.image.updatedAt)
 			: null
 
 	const header = `<?xml version="1.0" encoding="UTF-8"?>

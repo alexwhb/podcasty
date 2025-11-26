@@ -12,12 +12,12 @@ import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
-import { uploadHandler } from '#app/utils/file-uploads.server.ts'
 import {
 	getUserImgSrc,
 	useDoubleCheck,
 	useIsPending,
 } from '#app/utils/misc.tsx'
+import { uploadProfileImage } from '#app/utils/storage.server.ts'
 import { type Route } from './+types/profile.photo.ts'
 import { type BreadcrumbHandle } from './profile.tsx'
 
@@ -56,7 +56,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 			id: true,
 			name: true,
 			username: true,
-			image: { select: { id: true } },
+			image: { select: { id: true, objectKey: true } },
 		},
 	})
 	invariantResponse(user, 'User not found', { status: 404 })
@@ -69,7 +69,7 @@ export async function action({ request }: Route.ActionArgs) {
 	const formData = await parseFormData(
 		request,
 		{ maxFileSize: MAX_SIZE },
-		async (file: FileUpload) => uploadHandler(file),
+		async (file: FileUpload) => file,
 	)
 	const submission = await parseWithZod(formData, {
 		schema: PhotoFormSchema.transform(async (data) => {
@@ -78,8 +78,8 @@ export async function action({ request }: Route.ActionArgs) {
 			return {
 				intent: data.intent,
 				image: {
+					objectKey: await uploadProfileImage(userId, data.photoFile),
 					contentType: data.photoFile.type,
-					blob: Buffer.from(await data.photoFile.arrayBuffer()),
 				},
 			}
 		}),
@@ -147,7 +147,7 @@ export default function PhotoRoute({
 				<img
 					src={
 						newImageSrc ??
-						(loaderData.user ? getUserImgSrc(loaderData.user.image?.id) : '')
+						(loaderData.user ? getUserImgSrc(loaderData.user.image) : '')
 					}
 					className="h-52 w-52 rounded-full object-cover"
 					alt={loaderData.user?.name ?? loaderData.user?.username}

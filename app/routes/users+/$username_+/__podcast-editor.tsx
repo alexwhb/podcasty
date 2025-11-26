@@ -289,12 +289,11 @@ function ImageChooser({
 	form: any
 }) {
 	const fields = meta.getFieldset()
-	const existingImageId = fields.id.initialValue
+	const initialImage =
+		(meta.initialValue as { id?: string; objectKey?: string } | undefined) ?? {}
 	const [previewImage, setPreviewImage] = useState<string | null>(
-		existingImageId ? getPodcastImgSrc(existingImageId) : null,
+		initialImage ? getPodcastImgSrc(initialImage) : null,
 	)
-
-	console.log(existingImageId, fields.id, previewImage)
 
 	const handleRemoveImage = () => {
 		setPreviewImage(null)

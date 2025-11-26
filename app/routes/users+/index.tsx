@@ -12,6 +12,7 @@ const UserSearchResultSchema = z.object({
 	username: z.string(),
 	name: z.string().nullable(),
 	imageId: z.string().nullable(),
+	imageObjectKey: z.string().nullable(),
 })
 
 const UserSearchResultsSchema = z.array(UserSearchResultSchema)
@@ -24,7 +25,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 	const like = `%${searchTerm ?? ''}%`
 	const rawUsers = await prisma.$queryRaw`
-		SELECT User.id, User.username, User.name, UserImage.id AS imageId
+		SELECT User.id, User.username, User.name, UserImage.id AS imageId, UserImage.objectKey AS imageObjectKey
 		FROM User
 		LEFT JOIN UserImage ON User.id = UserImage.userId
 		WHERE User.username LIKE ${like}
@@ -81,7 +82,10 @@ export default function UsersRoute({ loaderData }: Route.ComponentProps) {
 									>
 										<img
 											alt={user.name ?? user.username}
-											src={getUserImgSrc(user.imageId)}
+											src={getUserImgSrc({
+												id: user.imageId ?? undefined,
+												objectKey: user.imageObjectKey ?? undefined,
+											})}
 											className="h-16 w-16 rounded-full"
 										/>
 										{user.name ? (

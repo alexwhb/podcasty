@@ -28,7 +28,7 @@ export function UserDropdown() {
 						<img
 							className="h-8 w-8 rounded-full object-cover"
 							alt={user.name ?? user.username}
-							src={getUserImgSrc(user.image?.id)}
+							src={getUserImgSrc(user.image)}
 						/>
 						<span className="text-body-sm font-bold">
 							{user.name ?? user.username}

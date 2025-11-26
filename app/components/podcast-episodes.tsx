@@ -30,14 +30,14 @@ interface Episode {
 	season?: number
 	isPublished: boolean
 	number?: number
-	image?: { id: string }
+	image?: { id?: string; objectKey?: string }
 	transcript?: { id: string } | null
 }
 
 interface Podcast {
 	id: string
 	title: string
-	image?: { id: string }
+	image?: { id?: string; objectKey?: string }
 	episodes: Episode[]
 }
 
@@ -181,7 +181,7 @@ export default function PodcastEpisodes({
 						<img
 							src={
 								episode.image
-									? getEpisodeImgSrc(episode.image.id)
+									? getEpisodeImgSrc(episode.image)
 									: 'https://placehold.co/60'
 							}
 							alt="Episode Thumbnail"

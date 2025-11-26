@@ -13,6 +13,7 @@ import { prisma } from '#app/utils/db.server.ts'
 import { getErrorMessage } from '#app/utils/misc'
 import { type Route } from './+types/podcasts.index'
 import { ensureUniquePodcastSlug } from '#app/utils/slug.server.ts'
+import { uploadEpisodeImage, uploadPodcastImage } from '#app/utils/storage.server.ts'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import path from 'node:path'
 import fs from 'node:fs/promises'
@@ -33,8 +34,17 @@ async function downloadAndConvertToBlob(url: string) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const fileName = (() => {
+      try {
+        const parsed = new URL(url)
+        const parts = parsed.pathname.split('/').filter(Boolean)
+        return parts[parts.length - 1] || 'file'
+      } catch {
+        return 'file'
+      }
+    })();
     
-    return { buffer, contentType };
+    return { buffer, contentType, fileName };
   } catch (error) {
     console.error('Error downloading file:', error);
     return null;
@@ -174,21 +184,6 @@ export async function action({ request }: Route.LoaderArgs) {
     const rssData = await parseStringPromise(rssText, { explicitArray: false })
     const channel = rssData.rss.channel
 
-    // Handle podcast cover image
-    let podcastImage = undefined;
-
-    if (importImages && channel['itunes:image']?.$?.href) {
-      const imageData = await downloadAndConvertToBlob(channel['itunes:image'].$.href);
-      if (imageData) {
-        podcastImage = {
-          create: {
-            contentType: imageData.contentType,
-            blob: imageData.buffer,
-          },
-        };
-      }
-    }
-
     // Create podcast
     const slug = await ensureUniquePodcastSlug(channel.title || 'podcast')
     const podcast = await prisma.podcast.create({
@@ -212,9 +207,30 @@ export async function action({ request }: Route.LoaderArgs) {
         license: channel['podcast:license'] || '',
         baseUrl: channel.link || '',
         ownerId: userId,
-        image: podcastImage,
       },
     })
+
+    // Handle podcast cover image
+    if (importImages && channel['itunes:image']?.$?.href) {
+      const imageData = await downloadAndConvertToBlob(channel['itunes:image'].$.href);
+      if (imageData) {
+        const file = new File([imageData.buffer], imageData.fileName, {
+          type: imageData.contentType,
+        })
+        const objectKey = await uploadPodcastImage(userId, podcast.id, file)
+        await prisma.podcast.update({
+          where: { id: podcast.id },
+          data: {
+            image: {
+              create: {
+                objectKey,
+                contentType: imageData.contentType,
+              },
+            },
+          },
+        })
+      }
+    }
 
     // Handle episodes if enabled
     if (importEpisodes) {
@@ -226,16 +242,13 @@ export async function action({ request }: Route.LoaderArgs) {
         const enclosureType = episode.enclosure?.type ?? episode.enclosure?.$?.type ?? 'audio/mpeg'
 
         // Handle episode image if enabled
-        let episodeImage = undefined;
+        let episodeImageFile: File | null = null
         if (importImages && episode['itunes:image']?.$?.href) {
           const imageData = await downloadAndConvertToBlob(episode['itunes:image']?.$?.href);
           if (imageData) {
-            episodeImage = {
-              create: {
-                contentType: imageData.contentType,
-                blob: imageData.buffer,
-              },
-            };
+            episodeImageFile = new File([imageData.buffer], imageData.fileName, {
+              type: imageData.contentType,
+            })
           }
         }
 
@@ -271,10 +284,29 @@ export async function action({ request }: Route.LoaderArgs) {
             episode: parseInt(episode['itunes:episode'] || '0', 10),
             explicit: episode['itunes:explicit'] === 'true',
             podcastId: podcast.id,
-            image: episodeImage,
             transcript: transcriptBlob,
           },
         })
+
+        if (episodeImageFile) {
+          const objectKey = await uploadEpisodeImage(
+            userId,
+            podcast.id,
+            createdEpisode.id,
+            episodeImageFile,
+          )
+          await prisma.episode.update({
+            where: { id: createdEpisode.id },
+            data: {
+              image: {
+                create: {
+                  objectKey,
+                  contentType: episodeImageFile.type,
+                },
+              },
+            },
+          })
+        }
 
         // Kick off audio download/storage in the background so the response isn't blocked
         if (enclosureUrl) {

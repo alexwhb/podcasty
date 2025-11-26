@@ -30,7 +30,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 			author: true,
 			description: true,
 			createdAt: true,
-			image: { select: { id: true, updatedAt: true } },
+			image: { select: { id: true, objectKey: true, updatedAt: true } },
 		},
 	})
 
@@ -52,7 +52,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 			season: true,
 			episode: true,
 			isPublished: true,
-			image: { select: { id: true, updatedAt: true } },
+			image: { select: { id: true, objectKey: true, updatedAt: true } },
 			transcript: { select: { id: true } },
 		},
 		orderBy: { pubDate: sort },
@@ -209,9 +209,9 @@ export default function PodcastInfo() {
 				<div className="w-full md:w-1/3">
 					<img
 						src={
-							podcast?.image?.id
+							podcast?.image
 								? getPodcastImgSrc(
-										podcast?.image?.id,
+										podcast?.image,
 										podcast?.image?.updatedAt,
 									)
 								: 'https://placehold.co/300'

@@ -6,6 +6,7 @@ import { PodcastEditorSchema } from '#app/routes/users+/$username_+/__podcast-ed
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { uploadHandler } from '#app/utils/file-uploads.server.ts'
+import { uploadPodcastImage } from '#app/utils/storage.server.ts'
 import { MAX_UPLOAD_SIZE } from './__podcast-editor.tsx'
 import { ensureUniquePodcastSlug } from '#app/utils/slug.server.ts'
 
@@ -57,8 +58,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 					...data,
 					imageUpdate: {
 						id: image.id,
-						contentType: image.file.type,
-						blob: Buffer.from(await image.file.arrayBuffer()),
+						file: image.file,
 					},
 				}
 			} else {
@@ -125,14 +125,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			locked,
 			guid: uuidv4(),
 			license: author,
-			image: imageUpdate?.contentType
-				? {
-						create: {
-							contentType: imageUpdate.contentType,
-							blob: imageUpdate.blob,
-						},
-					}
-				: undefined,
 		},
 		update: {
 			title,
@@ -144,29 +136,47 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			type,
 			explicit,
 			baseUrl,
-			image:
-				imageUpdate === null && existingPodcast?.image
-					? { delete: true } // Delete the image if explicitly set to null
-					: imageUpdate?.contentType
-						? existingPodcast?.image
-							? {
-									// If there's an existing image, update it
-									update: {
-										contentType: imageUpdate.contentType,
-										blob: imageUpdate.blob,
-									},
-								}
-							: {
-									// If there's no existing image, create one
-									create: {
-										contentType: imageUpdate.contentType,
-										blob: imageUpdate.blob,
-									},
-								}
-						: undefined, // No change if no image update provided
 			slug,
 		},
 	})
+
+	if (imageUpdate === null && existingPodcast?.image) {
+		await prisma.podcast.update({
+			where: { id: updatedPodcast.id },
+			data: { image: { delete: true } },
+		})
+	}
+
+	if (imageUpdate?.file) {
+		const objectKey = await uploadPodcastImage(
+			userId,
+			updatedPodcast.id,
+			imageUpdate.file,
+		)
+
+		if (existingPodcast?.image) {
+			await prisma.podcastImage.update({
+				where: { id: existingPodcast.image.id },
+				data: {
+					objectKey,
+					contentType: imageUpdate.file.type,
+					blob: null,
+				},
+			})
+		} else {
+			await prisma.podcast.update({
+				where: { id: updatedPodcast.id },
+				data: {
+					image: {
+						create: {
+							objectKey,
+							contentType: imageUpdate.file.type,
+						},
+					},
+				},
+			})
+		}
+	}
 
 	return redirect(`/users/${params.username}/podcasts/${updatedPodcast.id}`)
 }

@@ -37,6 +37,7 @@ import { Switch } from '#app/components/ui/switch'
 import { Textarea } from '#app/components/ui/textarea'
 import Uploader from '#app/components/uploader.tsx'
 import { useChunkUploader } from '#app/hooks/use-chunk-uploader.ts'
+import { getEpisodeImgSrc } from '#app/utils/misc.tsx'
 import { type Info } from './+types/podcasts.$podcastId.episode.$episodeId.new'
 
 export const EpisodeEditorSchema = z.object({
@@ -49,6 +50,24 @@ export const EpisodeEditorSchema = z.object({
 	isPublished: z.boolean().default(false),
 	episodeType: z.enum(['full', 'trailer', 'bonus']),
 	audioFile: z.string().optional(), // Added for uploaded file
+	image: z
+		.object({
+			id: z.string().optional(),
+			file: z
+				.instanceof(File, {
+					message: 'A valid image file is required if provided',
+				})
+				.optional()
+				.refine(
+					(file) => !file || ['image/jpeg', 'image/png'].includes(file.type),
+					'File must be a JPEG or PNG image',
+				)
+				.refine(
+					(file) => !file || file.size <= 5 * 1024 * 1024,
+					'File size must be less than 5MB',
+				),
+		})
+		.optional(),
 })
 
 function formatDuration(durationSeconds?: number | null) {
@@ -76,6 +95,9 @@ export default function EpisodeEditor({
 	const [episodeNum, setEpisode] = useState<number | null>(null)
 	const [seasonNum, setSeasonNum] = useState<number | null>(null)
 	const [uploadedFile, setUploadedFile] = useState<string | null>(null)
+	const [imagePreview, setImagePreview] = useState<string | null>(
+		episode?.image ? getEpisodeImgSrc(episode.image) : null,
+	)
 	const hasExistingAudio = Boolean(episode?.audioUrl)
 	const [isReplacingAudio, setIsReplacingAudio] = useState(false)
 	const existingAudioSize =
@@ -105,6 +127,7 @@ export default function EpisodeEditor({
 			episode: episode?.episode,
 			isPublished: episode?.isPublished || false,
 			episodeType: episode?.type || 'full',
+			image: episode?.image,
 		}),
 		[episode],
 	)
@@ -153,12 +176,59 @@ export default function EpisodeEditor({
 				{episode ? 'Edit' : 'Create'} Episode
 			</h1>
 			<FormProvider context={form.context}>
-				<Form method="POST" {...getFormProps(form)} className="space-y-6">
+				<Form
+					method="POST"
+					encType="multipart/form-data"
+					{...getFormProps(form)}
+					className="space-y-6"
+				>
 					{episode ? (
 						<input type="hidden" name="id" value={episode?.id} />
 					) : null}
 
 					{/* Uploader Section */}
+					<div className="space-y-4">
+						<Label>Episode Image</Label>
+						<div className="flex items-center gap-4">
+							<div className="h-20 w-20 overflow-hidden rounded-md border bg-muted">
+								{imagePreview ? (
+									<img
+										src={imagePreview}
+										alt="Episode image"
+										className="h-full w-full object-cover"
+									/>
+								) : (
+									<div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+										No image
+									</div>
+								)}
+							</div>
+							<input
+								type="file"
+								name="image.file"
+								accept="image/*"
+								onChange={(event) => {
+									const file = event.target.files?.[0]
+									if (file) {
+										const reader = new FileReader()
+										reader.onloadend = () =>
+											setImagePreview(reader.result as string)
+										reader.readAsDataURL(file)
+									} else {
+										setImagePreview(null)
+									}
+								}}
+							/>
+							{episode?.image?.id ? (
+								<input
+									type="hidden"
+									name="image.id"
+									defaultValue={episode.image.id}
+								/>
+							) : null}
+						</div>
+					</div>
+
 					<div className="space-y-4">
 						{hasExistingAudio ? (
 							<div className="rounded-md border p-4 shadow-sm">
