@@ -24,6 +24,13 @@ const schema = z.object({
 	AWS_REGION: z.string(),
 	AWS_ENDPOINT_URL_S3: z.string().url(),
 	BUCKET_NAME: z.string(),
+
+	// Optional: OpenAI Whisper transcription
+	OPENAI_API_KEY: z.string().optional(),
+	OPENAI_AUDIO_MODEL: z.string().default('whisper-1'),
+	ENABLE_WHISPER: z.enum(['true', 'false']).optional(),
+	WHISPER_ENDPOINT: z.string().optional(),
+	WHISPER_AUTH_HEADER: z.string().optional(),
 })
 
 declare global {

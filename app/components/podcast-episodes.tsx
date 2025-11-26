@@ -1,4 +1,4 @@
-import { ArrowUpDown, PlusIcon } from 'lucide-react'
+import { ArrowUpDown, Loader2Icon, PlusIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useFetcher } from 'react-router'
 import EpisodeStatusIndicator from '#app/components/episode-status-indicator.tsx'
@@ -56,6 +56,7 @@ interface PodcastEpisodesProps {
 	localSearch: string
 	setLocalSearch: React.Dispatch<React.SetStateAction<string>>
 	clearSearch: () => void
+	isWhisperConfigured?: boolean
 }
 
 function formatPubDate(dateString: string): string {
@@ -92,6 +93,7 @@ export default function PodcastEpisodes({
 	localSearch,
 	setLocalSearch,
 	clearSearch,
+	isWhisperConfigured = false,
 }: PodcastEpisodesProps) {
 	// Debounce effect to call onSearch when localSearch changes
 	useEffect(() => {
@@ -114,6 +116,10 @@ export default function PodcastEpisodes({
 	}>({ open: false, episode: null })
 
 	const [draftTranscript, setDraftTranscript] = useState('')
+	const [generateState, setGenerateState] = useState<
+		'idle' | 'pending' | 'error'
+	>('idle')
+	const [generateError, setGenerateError] = useState<string | null>(null)
 
 	const openTranscriptModal = (episode: Episode) => {
 		setTranscriptModal({ open: true, episode })
@@ -305,13 +311,45 @@ export default function PodcastEpisodes({
 								<div className="flex flex-wrap gap-3">
 									<Button
 										variant="secondary"
-										onClick={() =>
-											setDraftTranscript(
-												'[Auto-generated mock transcript]\n\nThis is a placeholder transcript generated for preview purposes.',
-											)
-										}
+										disabled={!isWhisperConfigured || generateState === 'pending'}
+										onClick={async () => {
+											if (!transcriptModal.episode) return
+											setGenerateError(null)
+											setGenerateState('pending')
+											const formData = new FormData()
+											formData.set('intent', 'generate')
+											try {
+												const response = await fetch(
+													`/resources/episode-transcript-generate/${transcriptModal.episode.id}`,
+													{
+														method: 'post',
+													},
+												)
+												const result = await response.json()
+												if (!response.ok || !result.success) {
+													throw new Error(result.error || 'Failed to generate')
+												}
+												setDraftTranscript(result.transcript || '')
+												setGenerateState('idle')
+											} catch (error) {
+												console.error(error)
+												setGenerateError(
+													error instanceof Error
+														? error.message
+														: 'Failed to generate transcript',
+												)
+												setGenerateState('error')
+											}
+										}}
 									>
-										Auto-generate (mock)
+										{generateState === 'pending' ? (
+											<>
+												<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+												Generating...
+											</>
+										) : (
+											'Auto-generate (Whisper)'
+										)}
 									</Button>
 									<Button
 										variant="outline"
@@ -320,6 +358,21 @@ export default function PodcastEpisodes({
 										Add manually
 									</Button>
 								</div>
+										{!isWhisperConfigured ? (
+									<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+										<p className="font-semibold">Whisper not configured</p>
+										<p>
+											Set WHISPER_ENDPOINT for a local Whisper server, or set
+											OPENAI_API_KEY and ENABLE_WHISPER=true to use OpenAI.
+										</p>
+									</div>
+								) : null}
+								{generateError ? (
+									<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+										<p className="font-semibold">Generation failed</p>
+										<p>{generateError}</p>
+									</div>
+								) : null}
 							</div>
 						) : null}
 

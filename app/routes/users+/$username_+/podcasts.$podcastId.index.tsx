@@ -68,6 +68,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 		},
 	})
 
+	const isWhisperConfigured =
+		process.env.ENABLE_WHISPER === 'true' && Boolean(process.env.OPENAI_API_KEY)
+
 	return {
 		podcast,
 		episodes,
@@ -75,6 +78,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 		currentPage: page,
 		currentSort: sort,
 		searchQuery,
+		isWhisperConfigured,
 	}
 }
 
@@ -104,6 +108,7 @@ export default function PodcastInfo() {
 		currentPage,
 		currentSort,
 		searchQuery,
+		isWhisperConfigured,
 	} = useLoaderData<typeof loader>()
 
 	// Maintain a local episode list that appends new episodes
@@ -266,6 +271,7 @@ export default function PodcastInfo() {
 				setLocalSearch={setLocalSearch}
 				clearSearch={clearSearch}
 				currentSearch={searchQuery}
+				isWhisperConfigured={isWhisperConfigured}
 			/>
 
 			{/* Delete Dialog */}
