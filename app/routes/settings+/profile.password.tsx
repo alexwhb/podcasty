@@ -73,6 +73,16 @@ export async function action({ request }: Route.ActionArgs) {
 							message: 'Incorrect password.',
 						})
 					}
+					const { checkIsCommonPassword } = await import('#app/utils/auth.server.ts')
+					const isCommon = await checkIsCommonPassword(newPassword)
+					if (isCommon) {
+						ctx.addIssue({
+							path: ['newPassword'],
+							code: z.ZodIssueCode.custom,
+							message:
+								'This password is too common. Please choose a more unique password.',
+						})
+					}
 				}
 			},
 		),

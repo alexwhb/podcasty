@@ -37,7 +37,7 @@ import { onboardingEmailSessionKey } from './onboarding'
 export const providerIdKey = 'providerId'
 export const prefilledProfileKey = 'prefilledProfile'
 
-const SignupFormSchema = z.object({
+const SignupFormSchemaBase = z.object({
 	imageUrl: z.string().optional(),
 	username: UsernameSchema,
 	name: NameSchema,
@@ -108,6 +108,22 @@ export async function action({ request, params }: Route.ActionArgs) {
 	const formData = await request.formData()
 	const verifySession = await verifySessionStorage.getSession(
 		request.headers.get('cookie'),
+	)
+
+	const SignupFormSchema = SignupFormSchemaBase.superRefine(
+		async ({ password }, ctx) => {
+			if (!password) return
+			const { checkIsCommonPassword } = await import('#app/utils/auth.server.ts')
+			const isCommon = await checkIsCommonPassword(password)
+			if (isCommon) {
+				ctx.addIssue({
+					path: ['password'],
+					code: z.ZodIssueCode.custom,
+					message:
+						'This password is too common. Please choose a more unique password.',
+				})
+			}
+		},
 	)
 
 	const submission = await parseWithZod(formData, {

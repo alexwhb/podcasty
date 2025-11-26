@@ -23,7 +23,7 @@ import { type Route } from './+types/onboarding.ts'
 
 export const onboardingEmailSessionKey = 'onboardingEmail'
 
-const SignupFormSchema = z
+const SignupFormSchemaBase = z
 	.object({
 		username: UsernameSchema,
 		name: NameSchema,
@@ -57,6 +57,21 @@ export async function action({ request }: Route.ActionArgs) {
 	const email = await requireOnboardingEmail(request)
 	const formData = await request.formData()
 	await checkHoneypot(formData)
+	const SignupFormSchema = SignupFormSchemaBase
+		.and(PasswordAndConfirmPasswordSchema)
+		.superRefine(async ({ password }, ctx) => {
+			if (!password) return
+			const { checkIsCommonPassword } = await import('#app/utils/auth.server.ts')
+			const isCommon = await checkIsCommonPassword(password)
+			if (isCommon) {
+				ctx.addIssue({
+					path: ['password'],
+					code: z.ZodIssueCode.custom,
+					message:
+						'This password is too common. Please choose a more unique password.',
+				})
+			}
+		})
 	const submission = await parseWithZod(formData, {
 		schema: (intent) =>
 			SignupFormSchema.superRefine(async (data, ctx) => {

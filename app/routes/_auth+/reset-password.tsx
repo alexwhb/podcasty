@@ -42,7 +42,19 @@ export async function action({ request }: Route.ActionArgs) {
 	const resetPasswordUsername = await requireResetPasswordUsername(request)
 	const formData = await request.formData()
 	const submission = parseWithZod(formData, {
-		schema: ResetPasswordSchema,
+		schema: ResetPasswordSchema.superRefine(async ({ password }, ctx) => {
+			if (!password) return
+			const { checkIsCommonPassword } = await import('#app/utils/auth.server.ts')
+			const isCommon = await checkIsCommonPassword(password)
+			if (isCommon) {
+				ctx.addIssue({
+					path: ['password'],
+					code: z.ZodIssueCode.custom,
+					message:
+						'This password is too common. Please choose a more unique password.',
+				})
+			}
+		}),
 	})
 	if (submission.status !== 'success') {
 		return data(
