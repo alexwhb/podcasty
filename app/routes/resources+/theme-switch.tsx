@@ -1,7 +1,14 @@
+import { useEffect } from 'react'
 import { useForm, getFormProps } from '@conform-to/react'
 import { parseWithZod } from '@conform-to/zod'
 import { invariantResponse } from '@epic-web/invariant'
-import { data, redirect, useFetcher, useFetchers } from 'react-router'
+import {
+	data,
+	redirect,
+	useFetcher,
+	useFetchers,
+	useRevalidator,
+} from 'react-router'
 import { ServerOnly } from 'remix-utils/server-only'
 import { z } from 'zod'
 import { Icon } from '#app/components/ui/icon.tsx'
@@ -44,6 +51,7 @@ export function ThemeSwitch({
 	userPreference?: Theme | null
 }) {
 	const fetcher = useFetcher<typeof action>()
+	const { revalidate } = useRevalidator()
 	const requestInfo = useRequestInfo()
 
 	const [form] = useForm({
@@ -79,6 +87,7 @@ export function ThemeSwitch({
 			{...getFormProps(form)}
 			action="/resources/theme-switch"
 		>
+			<RevalidateOnSuccess fetcher={fetcher} revalidate={revalidate} />
 			<ServerOnly>
 				{() => (
 					<input type="hidden" name="redirectTo" value={requestInfo.path} />
@@ -140,4 +149,19 @@ export function useOptionalTheme() {
 		return optimisticMode === 'system' ? optionalHints?.theme : optimisticMode
 	}
 	return optionalRequestInfo?.userPrefs.theme ?? optionalHints?.theme
+}
+
+function RevalidateOnSuccess({
+	fetcher,
+	revalidate,
+}: {
+	fetcher: ReturnType<typeof useFetcher<typeof action>>
+	revalidate: ReturnType<typeof useRevalidator>['revalidate']
+}) {
+	useEffect(() => {
+		if (fetcher.state === 'idle' && fetcher.data?.result) {
+			revalidate()
+		}
+	}, [fetcher.state, fetcher.data, revalidate])
+	return null
 }
