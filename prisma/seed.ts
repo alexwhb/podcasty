@@ -1,7 +1,6 @@
 import { faker } from '@faker-js/faker'
 import { promiseHash } from 'remix-utils/promise'
 import { prisma } from '#app/utils/db.server.ts'
-import { MOCK_CODE_GITHUB } from '#app/utils/providers/constants'
 import {
 	createPassword,
 	createUser,
@@ -9,7 +8,6 @@ import {
 	getUserImages,
 	img,
 } from '#tests/db-utils.ts'
-import { insertGitHubUser } from '#tests/mocks/github.ts'
 
 async function seed() {
 	console.log('🌱 Seeding...')
@@ -101,8 +99,6 @@ async function seed() {
 		}),
 	})
 
-	const githubUser = await insertGitHubUser(MOCK_CODE_GITHUB)
-
 	await prisma.user.create({
 		select: { id: true },
 		data: {
@@ -111,9 +107,6 @@ async function seed() {
 			name: 'Kody',
 			image: { create: kodyImages.kodyUser },
 			password: { create: createPassword('kodylovesyou') },
-			connections: {
-				create: { providerName: 'github', providerId: githubUser.profile.id },
-			},
 			roles: { connect: [{ name: 'admin' }, { name: 'user' }] },
 
 			notes: {

@@ -18,8 +18,18 @@ export const handle: BreadcrumbHandle & SEOHandle = {
 
 export async function loader({ request }: Route.LoaderArgs) {
 	const userId = await requireUserId(request)
-	const count = await prisma.passkey.count({ where: { userId } })
-	return { count }
+	const passkeys = await prisma.passkey.findMany({
+		where: { userId },
+		orderBy: { createdAt: 'desc' },
+		select: {
+			id: true,
+			createdAt: true,
+			deviceType: true,
+			backedUp: true,
+			transports: true,
+		},
+	})
+	return { passkeys }
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -46,6 +56,11 @@ export default function PasskeysRoute({
 		'idle',
 	)
 	const isPending = useIsPending()
+
+	const deletingId =
+		fetcher.formData?.get('intent') === 'delete'
+			? fetcher.formData.get('id')
+			: null
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -85,31 +100,66 @@ export default function PasskeysRoute({
 				</StatusButton>
 			</div>
 			<p className="text-body-md text-muted-foreground">
-				You currently have {loaderData.count} passkey
-				{loaderData.count === 1 ? '' : 's'} registered.
+				You currently have {loaderData.passkeys.length} passkey
+				{loaderData.passkeys.length === 1 ? '' : 's'} registered.
 			</p>
 
-			{loaderData.count > 0 ? (
-				<fetcher.Form method="POST" className="flex items-center gap-3">
-					<input type="hidden" name="intent" value="delete" />
-					<input
-						name="id"
-						placeholder="Passkey id"
-						className="rounded border px-2 py-1 text-sm"
-						required
-					/>
-					<StatusButton
-						type="submit"
-						variant="destructive"
-						status={fetcher.state !== 'idle' ? 'pending' : 'idle'}
-					>
-						Delete passkey
-					</StatusButton>
-					{actionData?.status === 'deleted' ? (
-						<span className="text-sm text-green-600">Deleted</span>
-					) : null}
-				</fetcher.Form>
+			{loaderData.passkeys.length > 0 ? (
+				<div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+					{loaderData.passkeys.map((passkey) => {
+						const transports = passkey.transports?.split(',') ?? []
+						return (
+							<div
+								key={passkey.id}
+								className="flex flex-wrap items-center gap-3 bg-card px-4 py-3 text-sm text-card-foreground"
+							>
+								<div className="min-w-0 flex-1 space-y-1">
+									<div className="font-medium">
+										{passkey.deviceType === 'singleDevice'
+											? 'Device-bound passkey'
+											: 'Multi-device passkey'}
+										{passkey.backedUp ? ' (backed up)' : ''}
+									</div>
+									<div className="text-muted-foreground">
+										ID: <code className="break-all">{passkey.id}</code>
+									</div>
+									<div className="text-muted-foreground">
+										Created:{' '}
+										{new Date(passkey.createdAt).toLocaleString(undefined, {
+											year: 'numeric',
+											month: 'short',
+											day: 'numeric',
+											hour: '2-digit',
+											minute: '2-digit',
+										})}
+									</div>
+									{transports.length ? (
+										<div className="text-muted-foreground">
+											Transports: {transports.join(', ')}
+										</div>
+									) : null}
+								</div>
+								<fetcher.Form method="POST" className="flex items-center gap-2">
+									<input type="hidden" name="intent" value="delete" />
+									<input type="hidden" name="id" value={passkey.id} />
+									<StatusButton
+										type="submit"
+										variant="destructive"
+										status={
+											fetcher.state !== 'idle' && deletingId === passkey.id
+												? 'pending'
+												: 'idle'
+										}
+									>
+										Delete
+									</StatusButton>
+								</fetcher.Form>
+							</div>
+						)
+					})}
+				</div>
 			) : null}
+
 			{status === 'success' ? (
 				<div className="rounded border border-green-600 bg-green-50 p-3 text-sm text-green-800">
 					Passkey registered successfully.

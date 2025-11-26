@@ -146,13 +146,52 @@ function Document({
 	env?: Record<string, string | undefined>
 }) {
 	const allowIndexing = ENV.ALLOW_INDEXING !== 'false'
+	const colorScheme = theme === 'dark' ? 'dark' : 'light'
 	return (
-		<html lang="en" className={`${theme} h-full overflow-x-hidden`}>
+		<html
+			lang="en"
+			className={`${theme} h-full overflow-x-hidden`}
+			data-theme={theme}
+			style={{ colorScheme }}
+		>
 			<head>
 				<ClientHintCheck nonce={nonce} />
 				<Meta />
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width,initial-scale=1" />
+				<script
+					nonce={nonce}
+					dangerouslySetInnerHTML={{
+						// Sync the initial class to avoid a flash when user/system prefers dark.
+						__html: `
+;(() => {
+	const getCookieTheme = () => {
+		const match = document.cookie.match(/(?:^|; )en_theme=([^;]+)/)
+		if (!match) return null
+		try {
+			return decodeURIComponent(match[1])
+		} catch {
+			return null
+		}
+	}
+	const cookieTheme = getCookieTheme()
+	const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+	const nextTheme =
+		cookieTheme === 'dark'
+			? 'dark'
+			: cookieTheme === 'light'
+				? 'light'
+				: prefersDark
+					? 'dark'
+					: 'light'
+	document.documentElement.classList.remove('light', 'dark')
+	document.documentElement.classList.add(nextTheme)
+	document.documentElement.style.colorScheme = nextTheme
+	document.documentElement.dataset.theme = nextTheme
+})()
+						`.trim(),
+					}}
+				/>
 				{allowIndexing ? null : (
 					<meta name="robots" content="noindex, nofollow" />
 				)}

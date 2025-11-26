@@ -1,4 +1,6 @@
+import crypto from 'node:crypto'
 import { PassThrough } from 'node:stream'
+import { contentSecurity } from '@nichtsam/helmet/content'
 import { createReadableStreamFromReadable } from '@react-router/node'
 
 import * as Sentry from '@sentry/node'
@@ -20,6 +22,8 @@ export const streamTimeout = 5000
 
 init()
 global.ENV = getEnv()
+
+const MODE = process.env.NODE_ENV ?? 'development'
 
 type DocRequestArgs = Parameters<HandleDocumentRequestFunction>
 
@@ -45,7 +49,9 @@ export default async function handleRequest(...args: DocRequestArgs) {
 		? 'onAllReady'
 		: 'onShellReady'
 
-	const nonce = loadContext.cspNonce?.toString() ?? ''
+	const nonce =
+		loadContext.cspNonce?.toString() ??
+		crypto.randomBytes(16).toString('hex')
 	return new Promise(async (resolve, reject) => {
 		let didError = false
 		// NOTE: this timing will only include things that are rendered in the shell
@@ -65,6 +71,36 @@ export default async function handleRequest(...args: DocRequestArgs) {
 					const body = new PassThrough()
 					responseHeaders.set('Content-Type', 'text/html')
 					responseHeaders.append('Server-Timing', timings.toString())
+					contentSecurity(responseHeaders, {
+						crossOriginEmbedderPolicy: false,
+						contentSecurityPolicy: {
+							reportOnly: false,
+							directives: {
+								'default-src': ["'self'"],
+								fetch: {
+									'connect-src': [
+										MODE === 'development' ? 'ws:' : undefined,
+										process.env.SENTRY_DSN ? '*.sentry.io' : undefined,
+										"'self'",
+									],
+									'font-src': ["'self'"],
+									'frame-src': ["'self'"],
+									'img-src': ["'self'", 'data:'],
+									'script-src': [
+										"'strict-dynamic'",
+										"'self'",
+										`'nonce-${nonce}'`,
+									],
+									'script-src-attr': [`'nonce-${nonce}'`],
+								},
+								'style-src': ["'self'", `'nonce-${nonce}'`],
+								'img-src': ["'self'", 'data:'],
+								'font-src': ["'self'"],
+								'frame-src': ["'self'"],
+								'object-src': ["'none'"],
+							},
+						},
+					})
 					resolve(
 						new Response(createReadableStreamFromReadable(body), {
 							headers: responseHeaders,

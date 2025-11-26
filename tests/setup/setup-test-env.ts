@@ -1,6 +1,15 @@
 import 'dotenv/config'
+
+// Provide default object storage env when running with mocks so env validation
+// and MSW S3 handlers have consistent values.
+process.env.AWS_ACCESS_KEY_ID ??= 'MOCK_ACCESS_KEY'
+process.env.AWS_SECRET_ACCESS_KEY ??= 'MOCK_SECRET_KEY'
+process.env.AWS_REGION ??= 'us-east-1'
+process.env.AWS_ENDPOINT_URL_S3 ??= 'https://storage.mock'
+process.env.BUCKET_NAME ??= 'mock-bucket'
+
+await import('#app/utils/env.server.ts')
 import './db-setup.ts'
-import '#app/utils/env.server.ts'
 // we need these to be imported first 👆
 
 import { cleanup } from '@testing-library/react'

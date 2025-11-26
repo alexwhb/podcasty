@@ -1,12 +1,12 @@
 import { reactRouter } from '@react-router/dev/vite'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
-
+import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite'
 import { envOnlyMacros } from 'vite-env-only'
-import { type ViteUserConfig } from 'vitest/config'
 
 const MODE = process.env.NODE_ENV
 
-export default {
+export default defineConfig({
 	build: {
 		target: 'es2022',
 		cssMinify: MODE === 'production',
@@ -34,6 +34,7 @@ export default {
 	},
 	plugins: [
 		envOnlyMacros(),
+		tailwindcss(),
 		// it would be really nice to have this enabled in tests, but we'll have to
 		// wait until https://github.com/remix-run/remix/issues/9871 is fixed
 		process.env.NODE_ENV === 'test' ? null : reactRouter(),
@@ -68,4 +69,4 @@ export default {
 			all: true,
 		},
 	},
-} satisfies ViteUserConfig
+})

@@ -17,6 +17,11 @@ sourceMapSupport.install({
 })
 
 if (process.env.MOCKS === 'true') {
+	process.env.AWS_ACCESS_KEY_ID ??= 'MOCK_ACCESS_KEY'
+	process.env.AWS_SECRET_ACCESS_KEY ??= 'MOCK_SECRET_KEY'
+	process.env.AWS_REGION ??= 'us-east-1'
+	process.env.AWS_ENDPOINT_URL_S3 ??= 'https://storage.mock'
+	process.env.BUCKET_NAME ??= 'mock-bucket'
 	await import('./tests/mocks/index.ts')
 }
 
