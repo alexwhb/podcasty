@@ -143,9 +143,11 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 												Explicit
 											</span>
 										) : null}
-										{episode.season != null && episode.episode != null ? (
+										{episode.episode != null ? (
 											<span className="rounded-full bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-												S{episode.season} • E{episode.episode}
+												{episode.season != null
+													? `S${episode.season} • E${episode.episode}`
+													: `E${episode.episode}`}
 											</span>
 										) : null}
 									</div>
