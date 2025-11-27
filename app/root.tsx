@@ -179,6 +179,11 @@ function Document({
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width,initial-scale=1" />
 				<script
+					defer
+					data-domain="roguecreators.awhb.dev"
+					src="https://plausible.awhb.dev/js/script.js"
+				/>
+				<script
 					nonce={nonce}
 					dangerouslySetInnerHTML={{
 						// Sync the initial class to avoid a flash when user/system prefers dark.
