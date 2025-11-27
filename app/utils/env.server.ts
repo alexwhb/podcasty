@@ -31,6 +31,14 @@ const schema = z.object({
 	ENABLE_WHISPER: z.enum(['true', 'false']).optional(),
 	WHISPER_ENDPOINT: z.string().optional(),
 	WHISPER_AUTH_HEADER: z.string().optional(),
+
+	// Optional: SMTP email fallback
+	SMTP_HOST: z.string().optional(),
+	SMTP_PORT: z.string().optional(),
+	SMTP_USER: z.string().optional(),
+	SMTP_PASS: z.string().optional(),
+	SMTP_FROM: z.string().optional(),
+	SMTP_SECURE: z.enum(['true', 'false']).optional(),
 })
 
 declare global {
