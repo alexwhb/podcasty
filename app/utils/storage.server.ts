@@ -1,12 +1,31 @@
 import { createHash, createHmac } from 'crypto'
 import { type FileUpload } from '@mjackson/form-data-parser'
 import { createId } from '@paralleldrive/cuid2'
+import {
+	CreateBucketCommand,
+	HeadBucketCommand,
+	S3Client,
+} from '@aws-sdk/client-s3'
 
 const STORAGE_ENDPOINT = process.env.AWS_ENDPOINT_URL_S3
 const STORAGE_BUCKET = process.env.BUCKET_NAME
 const STORAGE_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID
 const STORAGE_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY
 const STORAGE_REGION = process.env.AWS_REGION
+
+const s3Client =
+	STORAGE_ENDPOINT && STORAGE_REGION && STORAGE_ACCESS_KEY && STORAGE_SECRET_KEY
+		? new S3Client({
+				region: STORAGE_REGION,
+				endpoint: STORAGE_ENDPOINT,
+				credentials: {
+					accessKeyId: STORAGE_ACCESS_KEY,
+					secretAccessKey: STORAGE_SECRET_KEY,
+				},
+				forcePathStyle: true,
+			})
+		: null
+let bucketEnsured = false
 
 function requireStorageEnv() {
 	if (
@@ -22,6 +41,7 @@ function requireStorageEnv() {
 
 async function uploadToStorage(file: File | FileUpload, key: string) {
 	requireStorageEnv()
+	await ensureBucket()
 	const { url, headers } = getSignedPutRequestInfo(file, key)
 
 	const uploadResponse = await fetch(url, {
@@ -37,6 +57,26 @@ async function uploadToStorage(file: File | FileUpload, key: string) {
 	}
 
 	return key
+}
+
+async function ensureBucket() {
+	if (!s3Client || bucketEnsured) return
+	try {
+		await s3Client.send(new HeadBucketCommand({ Bucket: STORAGE_BUCKET }))
+		bucketEnsured = true
+		return
+	} catch (error) {
+		// ignore and try create
+	}
+	try {
+		await s3Client.send(
+			new CreateBucketCommand({ Bucket: STORAGE_BUCKET, ACL: 'private' }),
+		)
+		bucketEnsured = true
+	} catch (error) {
+		console.error('Failed to ensure bucket exists', error)
+		throw error
+	}
 }
 
 function buildImageKey(pathParts: Array<string>) {

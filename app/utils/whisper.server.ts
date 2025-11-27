@@ -2,7 +2,8 @@ import { env } from 'node:process'
 import { data } from 'react-router'
 import { prisma } from '#app/utils/db.server.ts'
 
-const MAX_AUDIO_BYTES = 50 * 1024 * 1024 // 50MB
+const MAX_AUDIO_BYTES =
+	Number(process.env.WHISPER_MAX_AUDIO_BYTES ?? '') || 500 * 1024 * 1024 // 500MB default
 const ALLOWED_AUDIO_MIME_PREFIXES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/flac']
 
 type WhisperConfig =
@@ -45,9 +46,11 @@ export function getWhisperConfig(): WhisperConfig {
 export async function transcribeEpisodeAudio({
 	episodeId,
 	userId,
+	request,
 }: {
 	episodeId: string
 	userId: string
+	request?: Request
 }) {
 	const config = getWhisperConfig()
 	if (!config.enabled) throw data(config.reason, { status: 400 })
@@ -71,7 +74,47 @@ export async function transcribeEpisodeAudio({
 		throw data('Episode audio not found', { status: 404 })
 	}
 
-	const audioResponse = await fetch(episode.audioUrl)
+	const audioUrl =
+		episode.audioUrl.startsWith('http')
+			? episode.audioUrl
+			: episode.audioUrl.startsWith('s3://')
+				? (() => {
+						try {
+							const withoutScheme = episode.audioUrl.replace(/^s3:\/\//, '')
+							const [bucket, ...rest] = withoutScheme.split('/')
+							const key = rest.join('/')
+							const endpoint = process.env.AWS_ENDPOINT_URL_S3
+							if (!endpoint || !bucket || !key) return episode.audioUrl
+							return `${endpoint.replace(/\/$/, '')}/${bucket}/${key}`
+						} catch {
+							return episode.audioUrl
+						}
+					})()
+				: new URL(
+						episode.audioUrl,
+						request?.url ??
+							process.env.INTERNAL_APP_URL ??
+							process.env.APP_URL ??
+							process.env.BASE_URL ??
+							`http://localhost:${process.env.PORT || 3000}`,
+					).toString()
+
+	const controller = new AbortController()
+	const timeout = setTimeout(() => controller.abort(), 1000 * 60 * 120) // 2 hours
+	let audioResponse: Response
+	try {
+		audioResponse = await fetch(audioUrl, { signal: controller.signal })
+	} catch (error) {
+		clearTimeout(timeout)
+		throw data(
+			`Unable to download audio: ${error instanceof Error ? error.message : 'unknown error'}`,
+			{
+				status: 502,
+			},
+		)
+	} finally {
+		clearTimeout(timeout)
+	}
 	if (!audioResponse.ok) {
 		throw data('Unable to download audio for transcription', {
 			status: 502,
@@ -108,38 +151,70 @@ export async function transcribeEpisodeAudio({
 	})
 
 	const form = new FormData()
-	form.set('file', file)
+	const fileField = config.kind === 'openai' ? 'file' : 'audio_file'
+	form.set(fileField, file)
 	form.set('model', config.model)
 
 	let response: Response
 	if (config.kind === 'openai') {
-		response = await fetch(
-			'https://api.openai.com/v1/audio/transcriptions',
-			{
+		const abortController = new AbortController()
+		const timeout2 = setTimeout(() => abortController.abort(), 1000 * 60 * 120)
+		try {
+			response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
 				method: 'POST',
 				headers: {
 					Authorization: `Bearer ${config.apiKey}`,
 				},
 				body: form,
-			},
-		)
+				signal: abortController.signal,
+			})
+		} catch (error) {
+			clearTimeout(timeout2)
+			throw data(
+				`Transcription failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+				{ status: 502 },
+			)
+		} finally {
+			clearTimeout(timeout2)
+		}
 	} else {
+		const abortController = new AbortController()
+		const timeout2 = setTimeout(() => abortController.abort(), 1000 * 60 * 120)
 		const headers: Record<string, string> = {}
 		if (config.authHeader) {
 			headers.Authorization = config.authHeader
 		}
-		response = await fetch(config.endpoint, {
-			method: 'POST',
-			headers,
-			body: form,
-		})
+		try {
+			response = await fetch(config.endpoint, {
+				method: 'POST',
+				headers,
+				body: form,
+				signal: abortController.signal,
+			})
+		} catch (error) {
+			clearTimeout(timeout2)
+			throw data(
+				`Transcription failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+				{ status: 502 },
+			)
+		} finally {
+			clearTimeout(timeout2)
+		}
 	}
 
 	if (!response.ok) {
 		const errorText = await response.text().catch(() => 'Unknown error')
-		throw data(`Transcription failed: ${errorText}`, {
-			status: 502,
+		console.error('Whisper transcription failed', {
+			endpoint: config.kind === 'openai' ? 'openai' : config.endpoint,
+			status: response.status,
+			body: errorText,
 		})
+		throw data(
+			`Transcription failed (${response.status}): ${errorText}`,
+			{
+				status: 502,
+			},
+		)
 	}
 
 	const result = (await response.json()) as { text?: string }
