@@ -32,10 +32,10 @@ for (const file of allFiles) {
 }
 
 console.log()
-console.log('building...')
 
-esbuild
-	.build({
+async function main() {
+	console.log('building server...')
+	await esbuild.build({
 		entryPoints: entries,
 		outdir: here('../server-build'),
 		target: [`node${pkg.engines.node}`],
@@ -44,7 +44,27 @@ esbuild
 		format: 'esm',
 		logLevel: 'info',
 	})
-	.catch((error: unknown) => {
-		console.error(error)
-		process.exit(1)
+
+	console.log()
+	console.log('building job worker...')
+	await esbuild.build({
+		entryPoints: [here('../app/utils/job-queue.server.ts')],
+		outfile: here('../server-build/utils/job-queue.server.js'),
+		bundle: true,
+		target: [`node${pkg.engines.node}`],
+		platform: 'node',
+		sourcemap: true,
+		format: 'esm',
+		logLevel: 'info',
+		external: ['@prisma/client', '@prisma/client/*'],
+		banner: {
+			// Enable CJS requires inside the bundled ESM output (AWS SDK pulls these in)
+			js: 'import { createRequire } from "module"; const require = createRequire(import.meta.url);',
+		},
 	})
+}
+
+void main().catch((error: unknown) => {
+	console.error(error)
+	process.exit(1)
+})

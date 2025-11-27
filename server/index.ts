@@ -259,6 +259,12 @@ ${lanUrl ? `${chalk.bold('On Your Network:')}  ${chalk.cyan(lanUrl)}` : ''}
 ${chalk.bold('Press Ctrl+C to stop')}
 		`.trim(),
 	)
+	// start background job worker after the server is ready
+	void import('./utils/job-queue.server.js')
+		.then(({ startJobWorker }) => startJobWorker())
+		.catch((error) => {
+			console.error('Failed to start job worker', error)
+		})
 })
 
 closeWithGrace(async ({ err }) => {
