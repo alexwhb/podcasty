@@ -17,11 +17,11 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       AWS_REGION: ${AWS_REGION:-us-east-1}
-      AWS_ENDPOINT_URL_S3: ${AWS_ENDPOINT_URL_S3:-http://minio:9000}
+      AWS_ENDPOINT_URL_S3: http://minio:9000
       BUCKET_NAME: ${BUCKET_NAME:-podcasty}
       LITEFS_DIR: ${LITEFS_DIR:-/data/litefs}
       ENABLE_WHISPER: ${ENABLE_WHISPER:-"true"}
-      WHISPER_ENDPOINT: ${WHISPER_ENDPOINT:-http://whisper:9000/asr}
+      WHISPER_ENDPOINT: http://whisper:9000/asr
       WHISPER_AUTH_HEADER: ${WHISPER_AUTH_HEADER:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_AUDIO_MODEL: ${OPENAI_AUDIO_MODEL:-whisper-1}
@@ -40,33 +40,48 @@ services:
     volumes:
       - app-data:/data
       - uploads:/app/uploads
+    networks:
+      - app-network
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-your_access_key}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_USER:-your_access_key}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
       - "19000:9000"
       - "19001:9001"
     volumes:
-      - minio-data:/data
+      - podcasty-data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   whisper:
     image: onerahmet/openai-whisper-asr-webservice:latest
     environment:
-      - ASR_MODEL=base
+#      - ASR_MODEL=base
+      - ASR_MODEL=tiny
       - ASR_ENGINE=openai_whisper
       - ASR_LANGUAGE=en
-      - ASR_BEAM_SIZE=5
+      - ASR_BEAM_SIZE=2
     ports:
       - "19002:9000"
     volumes:
       - whisper-models:/root/.cache
-
+    networks:
+      - app-network
 volumes:
   app-data:
   uploads:
-  minio-data:
+  podcasty-data:
   whisper-models:
+
+networks:
+  app-network:
+    driver: bridge

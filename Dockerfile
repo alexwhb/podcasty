@@ -31,6 +31,7 @@ COPY --from=builder /app/app ./app
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/server-build ./server-build
 COPY --from=builder /app/index.js ./index.js
+COPY --from=builder /app/app/utils/job-queue.server.ts ./app/utils/job-queue.server.ts
 
 VOLUME ["/data", "/app/uploads"]
 EXPOSE 3000
