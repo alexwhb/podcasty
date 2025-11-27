@@ -286,7 +286,7 @@ export default function PodcastEpisodes({
 					)}
 
 					<div className="ml-4">
-						<DropdownMenu>
+						<DropdownMenu modal={false}>
 							<DropdownMenuTrigger asChild>
 								<Button variant="ghost" size="icon">
 									<span>⋮</span>
