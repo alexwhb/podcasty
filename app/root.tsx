@@ -8,6 +8,7 @@ import {
 	ScrollRestoration,
 	useLoaderData,
 	useMatches,
+	redirect,
 } from 'react-router'
 import { HoneypotProvider } from 'remix-utils/honeypot/react'
 import logoIcon from '../public/podcasty.svg'

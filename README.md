@@ -11,6 +11,17 @@ All of this data is available to be queried from GraphQL to your podcast
 frontend, so you have total freedom to do whatever you want. It's completely
 headless.
 
+## Enable Whisper (optional)
+
+- Local (default preference):
+  - Set `WHISPER_ENDPOINT` to your self-hosted Whisper-compatible POST endpoint (accepts multipart `file` + `model` and returns `{ text }`).
+  - Optional: `WHISPER_AUTH_HEADER` for bearer tokens or basic auth strings.
+  - Optional: `OPENAI_AUDIO_MODEL` (defaults to `whisper-1`) if your server expects a model name.
+- OpenAI (fallback when no local endpoint is set):
+  - Set `OPENAI_API_KEY` and `ENABLE_WHISPER=true` (optional: `OPENAI_AUDIO_MODEL`, default `whisper-1`).
+- Restart the app after setting env vars.
+- Use “Auto-generate (Whisper)” in the episode transcript modal; if not configured, you’ll see setup guidance.
+
 ## The Inspiration
 
 I was tired of paying over $100 a year for hosting a podcast that I don't

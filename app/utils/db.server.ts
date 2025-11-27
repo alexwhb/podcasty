@@ -1,6 +1,5 @@
 import { remember } from '@epic-web/remember'
-// Changed import due to issue: https://github.com/remix-run/react-router/pull/12644
-import { PrismaClient } from '@prisma/client/index.js'
+import { PrismaClient } from '@prisma/client'
 import chalk from 'chalk'
 
 export const prisma = remember('prisma', () => {
