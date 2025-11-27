@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from 'react-router'
+import { useState } from 'react'
 import { Calendar, Clock, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '#app/components/ui/button.tsx'
@@ -23,6 +24,9 @@ function formatDuration(seconds: number) {
 export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 	const { podcast, episodes, totalEpisodes, page, pageSize, rssUrl } = data
 	const [searchParams] = useSearchParams()
+	const [expandedDescriptions, setExpandedDescriptions] = useState<
+		Record<string, boolean>
+	>({})
 	const totalPages = Math.max(1, Math.ceil(totalEpisodes / pageSize))
 	const rangeStart =
 		totalEpisodes === 0 ? 0 : (page - 1) * pageSize + 1
@@ -162,10 +166,28 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 										</span>
 									</div>
 									{episode.description ? (
-										<div
-											className="prose max-w-none text-sm text-muted-foreground line-clamp-3 dark:prose-invert"
-											dangerouslySetInnerHTML={{ __html: episode.description }}
-										/>
+										<div className="space-y-2">
+											<div
+												className={`prose max-w-none text-sm text-muted-foreground dark:prose-invert ${
+													expandedDescriptions[episode.id] ? '' : 'line-clamp-3'
+												}`}
+												dangerouslySetInnerHTML={{ __html: episode.description }}
+											/>
+											{(episode.description.length ?? 0) > 200 ? (
+												<button
+													type="button"
+													className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+													onClick={() =>
+														setExpandedDescriptions((prev) => ({
+															...prev,
+															[episode.id]: !prev[episode.id],
+														}))
+													}
+												>
+													{expandedDescriptions[episode.id] ? 'Show less' : 'Show more'}
+												</button>
+											) : null}
+										</div>
 									) : null}
 									{episode.audioUrl ? (
 										<audio
