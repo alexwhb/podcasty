@@ -47,3 +47,6 @@ node_modules
 .idea/httpRequests/
 .idea/**/workspace.xml
 .idea/**/tasks.xml
+
+.env.dev
+/prisma/.backup.data.db
