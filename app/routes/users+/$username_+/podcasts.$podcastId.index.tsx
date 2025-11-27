@@ -39,6 +39,16 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 		throw new Response('Podcast not found', { status: 404 })
 	}
 
+	// Auto-publish any episodes whose scheduled publish date has passed.
+	await prisma.episode.updateMany({
+		where: {
+			podcastId: params.podcastId,
+			isPublished: false,
+			pubDate: { lte: new Date() },
+		},
+		data: { isPublished: true },
+	})
+
 	// Fetch the episodes for the podcast.
 	const episodes = await prisma.episode.findMany({
 		where: {

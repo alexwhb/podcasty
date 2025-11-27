@@ -47,7 +47,8 @@ export const EpisodeEditorSchema = z.object({
 	season: z.number().optional(),
 	episode: z.number().optional(),
 	explicit: z.boolean().default(false),
-	isPublished: z.boolean().default(false),
+	isPublished: z.coerce.boolean().default(false),
+	publishMode: z.enum(['draft', 'schedule']).default('draft'),
 	episodeType: z.enum(['full', 'trailer', 'bonus']),
 	audioFile: z.string().optional(), // Added for uploaded file
 	image: z
@@ -94,6 +95,14 @@ export default function EpisodeEditor({
 	const [selectedDate, setSelectedDate] = useState(initialDate)
 	const [episodeNum, setEpisode] = useState<number | null>(null)
 	const [seasonNum, setSeasonNum] = useState<number | null>(null)
+	const initialIsPublished = episode?.isPublished ?? false
+	const initialPublishMode = useMemo(() => {
+		if (initialIsPublished) return 'draft'
+		if (episode?.pubDate && new Date(episode.pubDate) > new Date()) return 'schedule'
+		return 'draft'
+	}, [episode?.pubDate, initialIsPublished])
+	const [publishMode, setPublishMode] = useState<'draft' | 'schedule'>(initialPublishMode)
+	const [isPublished, setIsPublished] = useState(initialIsPublished)
 	const [uploadedFile, setUploadedFile] = useState<string | null>(null)
 	const [imagePreview, setImagePreview] = useState<string | null>(
 		episode?.image ? getEpisodeImgSrc(episode.image) : null,
@@ -125,11 +134,12 @@ export default function EpisodeEditor({
 			explicit: episode?.explicit || false,
 			season: episode?.season,
 			episode: episode?.episode,
-			isPublished: episode?.isPublished || false,
+			isPublished: initialIsPublished,
+			publishMode: initialPublishMode,
 			episodeType: episode?.type || 'full',
 			image: episode?.image,
 		}),
-		[episode],
+		[episode, initialPublishMode, initialIsPublished],
 	)
 
 	const [form, fields] = useForm({
@@ -460,22 +470,50 @@ export default function EpisodeEditor({
 						<input type="hidden" name="pubDate" value={isoDate} />
 					</div>
 
-					<div className="flex items-center space-x-2 py-2">
-						<Label htmlFor="explicit">Explicit</Label>
-						<Switch
-							id="explicit"
-							defaultChecked={episode?.explicit ?? false}
-							{...getInputProps(fields.explicit, { type: 'checkbox' })}
-							onChange={(e) => fields.explicit.onChange(e.target.checked)}
-						/>
-						<span className="px-4"></span>
-						<Label htmlFor="is-published">Is Published</Label>
-						<Switch
-							id="is-published"
-							defaultChecked={episode?.isPublished ?? false}
-							{...getInputProps(fields.isPublished, { type: 'checkbox' })}
-							onChange={(e) => fields.isPublished.onChange(e.target.checked)}
-						/>
+					<div className="space-y-3 py-2">
+						<div className="flex items-center gap-3">
+							<Label htmlFor="explicit">Explicit</Label>
+							<Switch
+								id="explicit"
+								defaultChecked={episode?.explicit ?? false}
+								{...getInputProps(fields.explicit, { type: 'checkbox' })}
+								onChange={(e) => fields.explicit.onChange(e.target.checked)}
+							/>
+						</div>
+						<div className="flex items-center gap-3">
+							<Label htmlFor="is-published">Publish now</Label>
+							<Switch
+								id="is-published"
+								checked={isPublished}
+								onCheckedChange={(checked) => setIsPublished(checked)}
+							/>
+							<input type="hidden" name="isPublished" value={String(isPublished)} />
+						</div>
+						{!isPublished ? (
+							<div className="space-y-2">
+								<Label>Publish later</Label>
+								<Select
+									value={publishMode}
+									onValueChange={(value) =>
+										setPublishMode(value as 'draft' | 'schedule')
+									}
+								>
+									<SelectTrigger className="w-full md:w-64">
+										<SelectValue placeholder="Select publish mode" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="draft">Save as draft</SelectItem>
+										<SelectItem value="schedule">Schedule for selected date</SelectItem>
+									</SelectContent>
+								</Select>
+								<input type="hidden" name="publishMode" value={publishMode} />
+								<p className="text-xs text-muted-foreground">
+									Use “Schedule” to auto-publish at the chosen date and time.
+								</p>
+							</div>
+						) : (
+							<input type="hidden" name="publishMode" value="draft" />
+						)}
 					</div>
 
 					<hr />

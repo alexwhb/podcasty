@@ -50,8 +50,22 @@ export async function action({
 		)
 	}
 
-	const { title, description, pubDate, explicit, season, episode, isPublished, episodeType, image } =
-		submission.value
+	const {
+		title,
+		description,
+		pubDate,
+		explicit,
+		season,
+		episode,
+		isPublished,
+		publishMode,
+		episodeType,
+		image,
+	} = submission.value
+
+	const shouldPublishNow =
+		isPublished ||
+		(publishMode === 'schedule' && new Date(pubDate) <= new Date())
 	const episodeRecord = await prisma.episode.upsert({
 		where: { id: params.episodeId ?? 'new_episode' },
 		create: {
@@ -68,7 +82,7 @@ export async function action({
 			audioType: '', // todo
 			season,
 			episode,
-			isPublished: isPublished,
+			isPublished: shouldPublishNow,
 			podcastId: params.podcastId,
 		},
 		update: {
@@ -78,7 +92,7 @@ export async function action({
 			explicit,
 			season,
 			episode,
-			isPublished,
+			isPublished: shouldPublishNow,
 			episodeType,
 		},
 	})
