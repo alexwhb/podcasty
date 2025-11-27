@@ -29,13 +29,12 @@ export default function PodcastSidebar({
 						))}
 					</ul>
 				</nav>
-				<div className="flex flex-col gap-2 p-2">
+				<div className="sticky bottom-0 space-y-2 bg-background p-2 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.12)]">
 					<Link to="./new" relative="path">
 						<Button className="w-full" variant="outline">
 							<Plus className="mr-2 h-4 w-4" /> Add Podcast
 						</Button>
 					</Link>
-
 					<Link to="./import" relative="path">
 						<Button className="w-full" variant="outline">
 							<ArrowUp className="mr-2 h-4 w-4" /> Import Podcast
