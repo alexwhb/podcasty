@@ -22,6 +22,11 @@ headless.
 - Restart the app after setting env vars.
 - Use “Auto-generate (Whisper)” in the episode transcript modal; if not configured, you’ll see setup guidance.
 
+## Email setup
+
+- Preferred: `RESEND_API_KEY` (and optional `RESEND_FROM`). If set, Resend sends all emails.
+- SMTP fallback (e.g., Gmail app password): set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`. Optional `SMTP_SECURE` (`true` by default). If Resend is not configured and SMTP is, the app will send via SMTP. If neither is set, emails are mocked and logged.
+
 ## The Inspiration
 
 I was tired of paying over $100 a year for hosting a podcast that I don't
