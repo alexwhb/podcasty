@@ -35,6 +35,7 @@ const SignupFormSchemaBase = z
 		redirectTo: z.string().optional(),
 	})
 	.and(PasswordAndConfirmPasswordSchema)
+const SignupFormSchema = SignupFormSchemaBase
 
 async function requireOnboardingEmail(request: Request) {
 	await requireAnonymous(request)
@@ -57,9 +58,7 @@ export async function action({ request }: Route.ActionArgs) {
 	const email = await requireOnboardingEmail(request)
 	const formData = await request.formData()
 	await checkHoneypot(formData)
-	const SignupFormSchema = SignupFormSchemaBase
-		.and(PasswordAndConfirmPasswordSchema)
-		.superRefine(async ({ password }, ctx) => {
+	const schema = SignupFormSchema.superRefine(async ({ password }, ctx) => {
 			if (!password) return
 			const { checkIsCommonPassword } = await import('#app/utils/auth.server.ts')
 			const isCommon = await checkIsCommonPassword(password)
@@ -74,7 +73,7 @@ export async function action({ request }: Route.ActionArgs) {
 		})
 	const submission = await parseWithZod(formData, {
 		schema: (intent) =>
-			SignupFormSchema.superRefine(async (data, ctx) => {
+			schema.superRefine(async (data, ctx) => {
 				const existingUser = await prisma.user.findUnique({
 					where: { username: data.username },
 					select: { id: true },

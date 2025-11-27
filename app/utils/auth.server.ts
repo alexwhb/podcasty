@@ -1,4 +1,5 @@
 import { type Connection, type Password, type User } from '@prisma/client'
+import { createHash } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { redirect } from 'react-router'
 import { Authenticator } from 'remix-auth'
@@ -19,6 +20,18 @@ export const sessionKey = 'sessionId'
 export const authenticator = new Authenticator<ProviderUser>(
 	connectionSessionStorage,
 )
+
+async function ensureRolesExist(names: Array<string>) {
+	await Promise.all(
+		names.map((name) =>
+			prisma.role.upsert({
+				where: { name },
+				create: { name, description: `${name} role` },
+				update: {},
+			}),
+		),
+	)
+}
 
 for (const [providerName, provider] of Object.entries(providers)) {
 	authenticator.use(provider.getAuthStrategy(), providerName)
@@ -125,6 +138,7 @@ export async function signup({
 	const userCount = await prisma.user.count()
 	const baseRoles = [{ name: 'user' } as const]
 	const roles = userCount === 0 ? [...baseRoles, { name: 'admin' } as const] : baseRoles
+	await ensureRolesExist(roles.map((r) => r.name))
 
 	const session = await prisma.session.create({
 		data: {
@@ -167,6 +181,7 @@ export async function signupWithConnection({
 	const userCount = await prisma.user.count()
 	const baseRoles = [{ name: 'user' } as const]
 	const roles = userCount === 0 ? [...baseRoles, { name: 'admin' } as const] : baseRoles
+	await ensureRolesExist(roles.map((r) => r.name))
 
 	const user = await prisma.user.create({
 		data: {
@@ -265,8 +280,7 @@ export async function verifyUserPassword(
 }
 
 export function getPasswordHashParts(password: string) {
-	const hash = crypto
-		.createHash('sha1')
+	const hash = createHash('sha1')
 		.update(password, 'utf8')
 		.digest('hex')
 		.toUpperCase()
