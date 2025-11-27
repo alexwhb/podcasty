@@ -163,8 +163,8 @@ export async function transcribeEpisodeAudio({
 	form.set(fileField, file)
 	form.set('model', config.model)
 	if (config.kind === 'local') {
-		// Ensure the local whisper webservice returns JSON; avoids plain-text responses.
-		form.set('output', 'json')
+		// Request SRT output from the local whisper webservice to include timestamps.
+		form.set('output', 'srt')
 	}
 
 	let response: Response

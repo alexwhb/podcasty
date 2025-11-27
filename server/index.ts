@@ -259,9 +259,19 @@ ${lanUrl ? `${chalk.bold('On Your Network:')}  ${chalk.cyan(lanUrl)}` : ''}
 ${chalk.bold('Press Ctrl+C to stop')}
 		`.trim(),
 	)
+
+	// In dev we load the worker straight from the app source; in prod we use the
+	// bundled version output to server-build/utils.
+	const importJobWorker = async () => {
+		const module: typeof import('#app/utils/job-queue.server.ts') = IS_DEV
+			? await import('#app/utils/job-queue.server.ts')
+			: await import('./utils/job-queue.server.js')
+		return module.startJobWorker
+	}
+
 	// start background job worker after the server is ready
-	void import('./utils/job-queue.server.js')
-		.then(({ startJobWorker }) => startJobWorker())
+	void importJobWorker()
+		.then((startJobWorker) => startJobWorker())
 		.catch((error) => {
 			console.error('Failed to start job worker', error)
 		})

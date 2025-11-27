@@ -60,6 +60,9 @@ async function uploadToStorage(file: File | FileUpload, key: string) {
 }
 
 async function ensureBucket() {
+	// In dev mocks we skip bucket existence checks because the MSW mock only
+	// stubs object-level requests, not HeadBucket/CreateBucket.
+	if (process.env.MOCKS === 'true' || process.env.USE_S3 === 'false') return
 	if (!s3Client || bucketEnsured) return
 	try {
 		await s3Client.send(new HeadBucketCommand({ Bucket: STORAGE_BUCKET }))
