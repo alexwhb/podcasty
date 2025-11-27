@@ -53,3 +53,10 @@ docker run --rm -p 3000:3000 podcasty
 - The Dockerfile installs deps in the builder, copies the repo, runs `npm run build`, then installs production deps in the runtime image. Volumes are mounted for databases and uploads.
 - Update secrets and consider binding to a reverse proxy with TLS for production.
 - Whisper uses a prebuilt image; to change it, update the `whisper` service in `docker-compose.yml` (image/env/ports) to match your desired build.
+- Whisper envs (for `onerahmet/openai-whisper-asr-webservice`):
+  - `ASR_MODEL` (default `base`): smaller (`tiny`, `tiny.en`, `base`) = less RAM/CPU and faster; larger (`small`, `medium`, `large`) = more accurate but slower and higher RAM/CPU (may OOM on small hosts).
+  - `ASR_ENGINE` (default `openai_whisper`): leave as-is for this image.
+  - `ASR_LANGUAGE` (default `en`): set to force language; leave empty for auto-detect (may be slower).
+  - `ASR_BEAM_SIZE` (default `5`): beam search width. Higher can slightly improve accuracy but increases CPU/memory and latency; set to `1-2` if resources are tight.
+- Whisper endpoint path: the app expects `/asr` for this image; if you change images or ports, update `WHISPER_ENDPOINT` accordingly.
+- Bucket name and creds: `BUCKET_NAME` must match MinIO. Set `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` in the `minio` service and the same values in `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for the app.
