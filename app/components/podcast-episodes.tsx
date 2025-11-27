@@ -298,28 +298,27 @@ export default function PodcastEpisodes({
 										Edit
 									</Link>
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={(e) => {
-									e.preventDefault()
-									onDeleteDialogOpen({
-										id: episode.id,
-										title: episode.title
-									})
-								}}>
+								<DropdownMenuItem
+									onSelect={() => {
+										onDeleteDialogOpen({
+											id: episode.id,
+											title: episode.title,
+										})
+									}}
+								>
 									Delete
 								</DropdownMenuItem>
 								<DropdownMenuItem
-									onSelect={() => onPublishUnpublish(episode.id, !episode.isPublished)}
+									onSelect={() =>
+										onPublishUnpublish(episode.id, !episode.isPublished)
+									}
 								>
-									{episode.isPublished ? (
-										<>Unpublish</>
-									) : (
-										<>Publish</>
-									)}
+									{episode.isPublished ? <>Unpublish</> : <>Publish</>}
 								</DropdownMenuItem>
 								<DropdownMenuItem
-									onSelect={(e) => {
-										e.preventDefault()
-										openTranscriptModal(episode)
+									onSelect={() => {
+										// Delay opening the modal to let the dropdown close first
+										setTimeout(() => openTranscriptModal(episode), 0)
 									}}
 								>
 									{episode.transcript ? 'View Transcript' : 'Add Transcript'}
@@ -342,170 +341,177 @@ export default function PodcastEpisodes({
 				</div>
 			)}
 
-			{transcriptModal.open ? (
-				<Dialog
-					open={transcriptModal.open}
-					onOpenChange={(open) =>
-						setTranscriptModal((prev) => ({ ...prev, open }))
+			<Dialog
+				open={transcriptModal.open}
+				onOpenChange={(open) => {
+					if (!open) {
+						setTranscriptModal({ open: false, episode: null })
+						setDraftTranscript('')
+						setGenerateState('idle')
+						setGenerateError(null)
+						setJobId(null)
+						setJobStatus(null)
+					} else {
+						setTranscriptModal((prev) => ({ ...prev, open: true }))
 					}
-				>
-					<DialogContent className="max-w-3xl">
-						<DialogHeader>
-							<DialogTitle>
-								{hasTranscript ? 'Transcript' : 'Add transcript'}
-							</DialogTitle>
-						</DialogHeader>
+				}}
+			>
+				<DialogContent className="max-w-3xl">
+					<DialogHeader>
+						<DialogTitle>
+							{hasTranscript ? 'Transcript' : 'Add transcript'}
+						</DialogTitle>
+					</DialogHeader>
 
-						{!hasTranscript && draftTranscript === '' ? (
-							<div className="space-y-3">
-								<p className="text-sm text-muted-foreground">
-									No transcript yet. Choose an option:
-								</p>
-								<div className="flex flex-wrap gap-3">
-									<Button
-										variant="secondary"
-										disabled={!isWhisperConfigured || generateState === 'pending'}
-										onClick={async () => {
-											if (!transcriptModal.episode) return
-											setGenerateError(null)
-											setGenerateState('pending')
-											try {
-												const response = await fetch(
-													`/resources/episode-transcript-generate/${transcriptModal.episode.id}`,
-													{
-														method: 'post',
-													},
-												)
-												const result = await response.json()
-												if (!response.ok || !result.success) {
-													throw new Error(result.error || 'Failed to generate')
-												}
-												if (result.jobId) {
-													setJobId(result.jobId)
-													setJobStatus('pending')
-												} else if (result.transcript) {
-													setDraftTranscript(result.transcript)
-													setGenerateState('idle')
-												}
-											} catch (error) {
-												console.error(error)
-												setGenerateError(
-													error instanceof Error
-														? error.message
-														: 'Failed to generate transcript',
-												)
-												setGenerateState('error')
-												setJobStatus(null)
-												setJobId(null)
-											}
-										}}
-									>
-										{generateState === 'pending' ? (
-											<>
-												<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-												{jobId
-													? jobStatus === 'running'
-														? 'Running...'
-														: 'Queued...'
-													: 'Generating...'}
-											</>
-										) : (
-											'Auto-generate (Whisper)'
-										)}
-									</Button>
-									<Button
-										variant="outline"
-										onClick={() => setDraftTranscript('')}
-									>
-										Add manually
-									</Button>
-								</div>
-										{!isWhisperConfigured ? (
-									<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-										<p className="font-semibold">Whisper not configured</p>
-										<p>
-											Set WHISPER_ENDPOINT for a local Whisper server, or set
-											OPENAI_API_KEY and ENABLE_WHISPER=true to use OpenAI.
-										</p>
-									</div>
-								) : null}
-								{generateError ? (
-									<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-										<p className="font-semibold">Generation failed</p>
-										<p>{generateError}</p>
-									</div>
-								) : null}
-							</div>
-						) : null}
-
-						{hasTranscript || draftTranscript !== '' ? (
-							<div className="space-y-2">
-								<label className="text-sm font-medium">Transcript</label>
-								<Textarea
-									value={draftTranscript}
-									onChange={(e) => setDraftTranscript(e.target.value)}
-									rows={12}
-									className="w-full"
-									placeholder="Paste or type transcript here..."
-								/>
-							</div>
-						) : null}
-
-						<DialogFooter className="flex items-center justify-between">
-							{hasTranscript ? (
+					{transcriptModal.episode && !hasTranscript && draftTranscript === '' ? (
+						<div className="space-y-3">
+							<p className="text-sm text-muted-foreground">
+								No transcript yet. Choose an option:
+							</p>
+							<div className="flex flex-wrap gap-3">
 								<Button
-									variant="ghost"
-									className="text-destructive"
-									onClick={() => {
+									variant="secondary"
+									disabled={!isWhisperConfigured || generateState === 'pending'}
+									onClick={async () => {
 										if (!transcriptModal.episode) return
-										transcriptFetcher.submit(
-											{},
-											{
-												method: 'delete',
-												action: `/resources/episode-transcript/${transcriptModal.episode.id}`,
-											},
-										)
-										setDraftTranscript('')
-										setTranscriptModal((prev) => ({ ...prev, open: false }))
+										setGenerateError(null)
+										setGenerateState('pending')
+										try {
+											const response = await fetch(
+												`/resources/episode-transcript-generate/${transcriptModal.episode.id}`,
+												{
+													method: 'post',
+												},
+											)
+											const result = await response.json()
+											if (!response.ok || !result.success) {
+												throw new Error(result.error || 'Failed to generate')
+											}
+											if (result.jobId) {
+												setJobId(result.jobId)
+												setJobStatus('pending')
+											} else if (result.transcript) {
+												setDraftTranscript(result.transcript)
+												setGenerateState('idle')
+											}
+										} catch (error) {
+											console.error(error)
+											setGenerateError(
+												error instanceof Error
+													? error.message
+													: 'Failed to generate transcript',
+											)
+											setGenerateState('error')
+											setJobStatus(null)
+											setJobId(null)
+										}
 									}}
-									title="Delete transcript"
 								>
-									🗑
+									{generateState === 'pending' ? (
+										<>
+											<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+											{jobId
+												? jobStatus === 'running'
+													? 'Running...'
+													: 'Queued...'
+												: 'Generating...'}
+										</>
+									) : (
+										'Auto-generate (Whisper)'
+									)}
 								</Button>
-							) : (
-								<span />
-							)}
-
-							<div className="flex gap-2">
 								<Button
 									variant="outline"
-									onClick={() =>
-										setTranscriptModal({ open: false, episode: null })
-									}
+									onClick={() => setDraftTranscript('')}
 								>
-									Close
+									Add manually
 								</Button>
-								{(hasTranscript || draftTranscript) && (
-									<Button
-										onClick={() => {
-											if (!transcriptModal.episode) return
-											const formData = new FormData()
-											formData.set('transcript', draftTranscript)
-											transcriptFetcher.submit(formData, {
-												method: 'post',
-												action: `/resources/episode-transcript/${transcriptModal.episode.id}`,
-											})
-											setTranscriptModal((prev) => ({ ...prev, open: false }))
-										}}
-									>
-										Save
-									</Button>
-								)}
 							</div>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-			) : null}
+									{!isWhisperConfigured ? (
+								<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+									<p className="font-semibold">Whisper not configured</p>
+									<p>
+										Set WHISPER_ENDPOINT for a local Whisper server, or set
+										OPENAI_API_KEY and ENABLE_WHISPER=true to use OpenAI.
+									</p>
+								</div>
+							) : null}
+							{generateError ? (
+								<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+									<p className="font-semibold">Generation failed</p>
+									<p>{generateError}</p>
+								</div>
+							) : null}
+						</div>
+					) : null}
+
+					{transcriptModal.episode && (hasTranscript || draftTranscript !== '') ? (
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Transcript</label>
+							<Textarea
+								value={draftTranscript}
+								onChange={(e) => setDraftTranscript(e.target.value)}
+								rows={12}
+								className="w-full"
+								placeholder="Paste or type transcript here..."
+							/>
+						</div>
+					) : null}
+
+					<DialogFooter className="flex items-center justify-between">
+						{hasTranscript ? (
+							<Button
+								variant="ghost"
+								className="text-destructive"
+								onClick={() => {
+									if (!transcriptModal.episode) return
+									transcriptFetcher.submit(
+										{},
+										{
+											method: 'delete',
+											action: `/resources/episode-transcript/${transcriptModal.episode.id}`,
+										},
+									)
+									setDraftTranscript('')
+									setTranscriptModal((prev) => ({ ...prev, open: false }))
+								}}
+								title="Delete transcript"
+							>
+								🗑
+							</Button>
+						) : (
+							<span />
+						)}
+
+						<div className="flex gap-2">
+							<Button
+								variant="outline"
+								onClick={() =>
+									setTranscriptModal({ open: false, episode: null })
+								}
+							>
+								Close
+							</Button>
+							{transcriptModal.episode && (hasTranscript || draftTranscript) && (
+								<Button
+									onClick={() => {
+										if (!transcriptModal.episode) return
+										const formData = new FormData()
+										formData.set('transcript', draftTranscript)
+										transcriptFetcher.submit(formData, {
+											method: 'post',
+											action: `/resources/episode-transcript/${transcriptModal.episode.id}`,
+										})
+										setTranscriptModal((prev) => ({ ...prev, open: false }))
+									}}
+								>
+									Save
+								</Button>
+							)}
+						</div>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }
