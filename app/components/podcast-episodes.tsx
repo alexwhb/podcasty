@@ -57,6 +57,7 @@ interface PodcastEpisodesProps {
 	setLocalSearch: React.Dispatch<React.SetStateAction<string>>
 	clearSearch: () => void
 	isWhisperConfigured?: boolean
+	jobPollPath?: string
 }
 
 function formatPubDate(dateString: string): string {
@@ -94,6 +95,7 @@ export default function PodcastEpisodes({
 	setLocalSearch,
 	clearSearch,
 	isWhisperConfigured = false,
+	jobPollPath = '/resources/job-status',
 }: PodcastEpisodesProps) {
 	// Debounce effect to call onSearch when localSearch changes
 	useEffect(() => {
@@ -120,6 +122,10 @@ export default function PodcastEpisodes({
 		'idle' | 'pending' | 'error'
 	>('idle')
 	const [generateError, setGenerateError] = useState<string | null>(null)
+	const [jobId, setJobId] = useState<string | null>(null)
+	const [jobStatus, setJobStatus] = useState<'pending' | 'running' | null>(
+		null,
+	)
 
 	const openTranscriptModal = (episode: Episode) => {
 		setTranscriptModal({ open: true, episode })
@@ -134,6 +140,53 @@ export default function PodcastEpisodes({
 			setDraftTranscript(transcriptFetcher.data.transcript)
 		}
 	}, [transcriptFetcher.data])
+
+	useEffect(() => {
+		let timer: NodeJS.Timeout | null = null
+		const poll = async () => {
+			if (!jobId) return
+			try {
+				const resp = await fetch(`${jobPollPath}/${jobId}`)
+				const data = await resp.json()
+				if (!resp.ok) {
+					throw new Error(data?.error || 'Job failed')
+				}
+				if (data.status === 'pending' || data.status === 'running') {
+					setJobStatus(data.status)
+				}
+				if (data.status === 'succeeded') {
+					if (data.transcript) {
+						setDraftTranscript(data.transcript)
+					}
+					setGenerateState('idle')
+					setJobStatus(null)
+					setJobId(null)
+					return
+				}
+				if (data.status === 'failed') {
+					setGenerateError(data.error || 'Transcription failed')
+					setGenerateState('error')
+					setJobStatus(null)
+					setJobId(null)
+					return
+				}
+			} catch (error) {
+				console.error(error)
+				setGenerateError(
+					error instanceof Error ? error.message : 'Transcription failed',
+				)
+				setGenerateState('error')
+				setJobStatus(null)
+				setJobId(null)
+				return
+			}
+			timer = setTimeout(poll, 2000)
+		}
+		if (jobId) poll()
+		return () => {
+			if (timer) clearTimeout(timer)
+		}
+	}, [jobId, jobPollPath])
 
 	const hasTranscript = useMemo(
 		() => Boolean(transcriptModal.episode?.transcript?.id),
@@ -316,8 +369,6 @@ export default function PodcastEpisodes({
 											if (!transcriptModal.episode) return
 											setGenerateError(null)
 											setGenerateState('pending')
-											const formData = new FormData()
-											formData.set('intent', 'generate')
 											try {
 												const response = await fetch(
 													`/resources/episode-transcript-generate/${transcriptModal.episode.id}`,
@@ -329,8 +380,13 @@ export default function PodcastEpisodes({
 												if (!response.ok || !result.success) {
 													throw new Error(result.error || 'Failed to generate')
 												}
-												setDraftTranscript(result.transcript || '')
-												setGenerateState('idle')
+												if (result.jobId) {
+													setJobId(result.jobId)
+													setJobStatus('pending')
+												} else if (result.transcript) {
+													setDraftTranscript(result.transcript)
+													setGenerateState('idle')
+												}
 											} catch (error) {
 												console.error(error)
 												setGenerateError(
@@ -339,13 +395,19 @@ export default function PodcastEpisodes({
 														: 'Failed to generate transcript',
 												)
 												setGenerateState('error')
+												setJobStatus(null)
+												setJobId(null)
 											}
 										}}
 									>
 										{generateState === 'pending' ? (
 											<>
 												<Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-												Generating...
+												{jobId
+													? jobStatus === 'running'
+														? 'Running...'
+														: 'Queued...'
+													: 'Generating...'}
 											</>
 										) : (
 											'Auto-generate (Whisper)'

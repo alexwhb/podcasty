@@ -1,10 +1,18 @@
 import { env } from 'node:process'
 import { data } from 'react-router'
+import { Agent } from 'undici'
 import { prisma } from '#app/utils/db.server.ts'
 
 const MAX_AUDIO_BYTES =
 	Number(process.env.WHISPER_MAX_AUDIO_BYTES ?? '') || 500 * 1024 * 1024 // 500MB default
 const ALLOWED_AUDIO_MIME_PREFIXES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/flac']
+
+// Disable the default 5 minute undici fetch timeout for long-running whisper requests.
+const whisperDispatcher = new Agent({
+	// Keep headers/body timeouts disabled; we already enforce a 2h abortController above.
+	headersTimeout: 0,
+	bodyTimeout: 0,
+})
 
 type WhisperConfig =
 	| { enabled: false; reason: string }
@@ -154,6 +162,10 @@ export async function transcribeEpisodeAudio({
 	const fileField = config.kind === 'openai' ? 'file' : 'audio_file'
 	form.set(fileField, file)
 	form.set('model', config.model)
+	if (config.kind === 'local') {
+		// Ensure the local whisper webservice returns JSON; avoids plain-text responses.
+		form.set('output', 'json')
+	}
 
 	let response: Response
 	if (config.kind === 'openai') {
@@ -190,6 +202,7 @@ export async function transcribeEpisodeAudio({
 				headers,
 				body: form,
 				signal: abortController.signal,
+				dispatcher: whisperDispatcher,
 			})
 		} catch (error) {
 			clearTimeout(timeout2)
@@ -217,8 +230,28 @@ export async function transcribeEpisodeAudio({
 		)
 	}
 
-	const result = (await response.json()) as { text?: string }
-	if (!result.text) {
+	const responseContentType = response.headers.get('content-type')?.toLowerCase() ?? ''
+	const responseText = await response.text()
+
+	let transcriptText: string | undefined
+	if (responseContentType.includes('application/json')) {
+		try {
+			const parsed = JSON.parse(responseText) as { text?: string } | string
+			if (typeof parsed === 'string') {
+				transcriptText = parsed
+			} else {
+				transcriptText = parsed.text
+			}
+		} catch {
+			// fall through to treat as plain text
+		}
+	}
+
+	if (!transcriptText) {
+		transcriptText = responseText
+	}
+
+	if (!transcriptText || !transcriptText.trim()) {
 		throw data('Transcription failed: empty response', { status: 502 })
 	}
 
@@ -227,13 +260,13 @@ export async function transcribeEpisodeAudio({
 		create: {
 			episodeId,
 			contentType: 'text/plain; charset=utf-8',
-			blob: Buffer.from(result.text, 'utf8'),
+			blob: Buffer.from(transcriptText, 'utf8'),
 		},
 		update: {
 			contentType: 'text/plain; charset=utf-8',
-			blob: Buffer.from(result.text, 'utf8'),
+			blob: Buffer.from(transcriptText, 'utf8'),
 		},
 	})
 
-	return result.text
+	return transcriptText
 }

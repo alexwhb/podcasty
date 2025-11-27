@@ -7,6 +7,7 @@ import { Button } from '#app/components/ui/button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getPodcastImgSrc } from '#app/utils/misc.tsx'
+import { getWhisperConfig } from '#app/utils/whisper.server.ts'
 import { type Route } from './+types/podcasts.$podcastId'
 import DeleteDialog from '#app/components/delete-dialog.tsx'
 
@@ -68,8 +69,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 		},
 	})
 
-	const isWhisperConfigured =
-		process.env.ENABLE_WHISPER === 'true' && Boolean(process.env.OPENAI_API_KEY)
+	const isWhisperConfigured = getWhisperConfig().enabled
 
 	return {
 		podcast,
@@ -272,6 +272,7 @@ export default function PodcastInfo() {
 				clearSearch={clearSearch}
 				currentSearch={searchQuery}
 				isWhisperConfigured={isWhisperConfigured}
+				jobPollPath="/resources/job-status"
 			/>
 
 			{/* Delete Dialog */}
