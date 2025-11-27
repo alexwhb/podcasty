@@ -234,17 +234,27 @@ export async function transcribeEpisodeAudio({
 	const responseText = await response.text()
 
 	let transcriptText: string | undefined
+	let segments: Array<{ start?: number; text?: string }> | undefined
 	if (responseContentType.includes('application/json')) {
 		try {
-			const parsed = JSON.parse(responseText) as { text?: string } | string
+			const parsed = JSON.parse(responseText) as
+				| { text?: string; segments?: Array<{ start?: number; end?: number; text?: string }> }
+				| string
 			if (typeof parsed === 'string') {
 				transcriptText = parsed
 			} else {
 				transcriptText = parsed.text
+				if (Array.isArray(parsed.segments)) {
+					segments = parsed.segments
+				}
 			}
 		} catch {
 			// fall through to treat as plain text
 		}
+	}
+
+	if (segments?.length) {
+		transcriptText = formatSegmentsToSrt(segments)
 	}
 
 	if (!transcriptText) {
@@ -269,4 +279,48 @@ export async function transcribeEpisodeAudio({
 	})
 
 	return transcriptText
+}
+
+function formatSegmentsToSrt(
+	segments: Array<{ start?: number; end?: number; text?: string }>,
+) {
+	const entries = segments
+		.map((segment, index) => {
+			const text = (segment.text ?? '').trim()
+			if (!text) return null
+			const start = formatSrtTimestamp(segment.start)
+			const end = formatSrtTimestamp(resolveEnd(segment, segments[index + 1]))
+			return `${index + 1}\n${start} --> ${end}\n${text}`
+		})
+		.filter(Boolean) as string[]
+
+	return entries.join('\n\n')
+}
+
+function resolveEnd(
+	segment: { end?: number; start?: number },
+	next?: { start?: number },
+) {
+	if (typeof segment.end === 'number' && !Number.isNaN(segment.end)) {
+		return segment.end
+	}
+	if (typeof next?.start === 'number' && !Number.isNaN(next.start)) {
+		return next.start
+	}
+	const start = typeof segment.start === 'number' && !Number.isNaN(segment.start) ? segment.start : 0
+	return start + 3
+}
+
+function formatSrtTimestamp(seconds?: number) {
+	const safeSeconds =
+		typeof seconds === 'number' && !Number.isNaN(seconds) && seconds >= 0 ? seconds : 0
+	const hrs = Math.floor(safeSeconds / 3600)
+	const mins = Math.floor((safeSeconds % 3600) / 60)
+	const secs = Math.floor(safeSeconds % 60)
+	const ms = Math.round((safeSeconds - Math.floor(safeSeconds)) * 1000)
+	const hh = hrs.toString().padStart(2, '0')
+	const mm = mins.toString().padStart(2, '0')
+	const ss = secs.toString().padStart(2, '0')
+	const mmm = ms.toString().padStart(3, '0')
+	return `${hh}:${mm}:${ss},${mmm}`
 }
