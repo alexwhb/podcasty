@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { decode } from 'he'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { parseStringPromise } from 'xml2js'
 import fetch from 'node-fetch'
@@ -182,8 +183,8 @@ export async function importPodcastFromRss({
 	const podcast = await prisma.podcast.create({
 		data: {
 			slug,
-			title: channel.title,
-			description: channel.description,
+			title: decode(channel.title || ''),
+			description: decode(channel.description || ''),
 			link: channel.link,
 			language: channel.language || 'en',
 			copyright: channel.copyright || '',
@@ -266,8 +267,8 @@ export async function importPodcastFromRss({
 
 			const createdEpisode = await prisma.episode.create({
 				data: {
-					title: episode.title,
-					description: episode.description,
+					title: decode(episode.title || ''),
+					description: decode(episode.description || ''),
 					link: episode.link,
 					audioUrl: enclosureUrl || '',
 					audioSize: parseInt(enclosureLength, 10),
