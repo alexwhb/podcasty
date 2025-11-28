@@ -85,13 +85,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		description,
 		author,
 		language,
-		category,
-		type,
-		locked,
-		explicit,
-		baseUrl,
-		imageUpdate,
+	category,
+	type,
+	locked,
+	explicit,
+	baseUrl,
+	imageUpdate,
+	image,
 	} = submission.value
+	const imageId = image?.id ?? null
 
 	// Check if the podcast has an existing image before attempting to delete
 	const existingPodcast = podcastId
@@ -140,7 +142,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		},
 	})
 
-	if (imageUpdate === null && existingPodcast?.image) {
+	// Only delete if the user explicitly removed the image (no file and no id)
+	if (imageUpdate === null && existingPodcast?.image && !imageId) {
 		await prisma.podcast.update({
 			where: { id: updatedPodcast.id },
 			data: { image: { delete: true } },
