@@ -54,6 +54,18 @@ type StorageConfig =
 	| { kind: 's3'; client: S3Client; bucket: string; publicBaseUrl?: string }
 	| { kind: 'fs'; baseDir: string; publicBaseUrl?: string }
 
+function extractCategories(channel: any): Array<string> {
+	const raw = channel['itunes:category']
+	if (!raw) return []
+	const list = Array.isArray(raw) ? raw : [raw]
+	return list
+		.map((entry: any) =>
+			typeof entry === 'string' ? entry : entry?.$?.text ?? '',
+		)
+		.filter((c: string) => c.trim().length)
+		.map((c: string) => c.trim())
+}
+
 function createStorageConfig(): StorageConfig {
 	if (process.env.USE_S3 === 'true') {
 		if (
@@ -178,6 +190,7 @@ export async function importPodcastFromRss({
 	const rssText = await response.text()
 	const rssData = await parseStringPromise(rssText, { explicitArray: false })
 	const channel = rssData.rss.channel
+	const categories = extractCategories(channel)
 
 	const slug = await ensureUniquePodcastSlug(channel.title || 'podcast')
 	const podcast = await prisma.podcast.create({
@@ -195,7 +208,7 @@ export async function importPodcastFromRss({
 			author: channel['itunes:author'] || '',
 			explicit: channel['itunes:explicit'] === 'true',
 			type: channel['itunes:type'] || 'episodic',
-			category: channel['itunes:category']?.text || 'Uncategorized',
+			category: categories.length ? categories.join(',') : 'Uncategorized',
 			guid: channel['podcast:guid'] || '',
 			locked: channel['podcast:locked'] === 'yes',
 			license: channel['podcast:license'] || '',
