@@ -1,6 +1,6 @@
 import { data } from 'react-router'
 import { prisma } from '#app/utils/db.server.ts'
-import { getPodcastImgSrc } from '#app/utils/misc.tsx'
+import { getDomainUrl, getPodcastImgSrc } from '#app/utils/misc.tsx'
 
 function xmlEscape(value: string | null | undefined) {
 	if (!value) return ''
@@ -16,9 +16,29 @@ function appendPath(base: string, path: string) {
 	return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
-export async function loader({ params }: { params: { slug?: string; '*': string } }) {
+function absolutize(pathOrUrl: string | null | undefined, origin: string) {
+	if (!pathOrUrl) return ''
+	try {
+		return new URL(pathOrUrl, origin).toString()
+	} catch {
+		// Fallback to manual join if URL construction fails
+		return pathOrUrl.startsWith('/')
+			? appendPath(origin, pathOrUrl)
+			: appendPath(origin, `/${pathOrUrl}`)
+	}
+}
+
+export async function loader({
+	request,
+	params,
+}: {
+	request: Request
+	params: { slug?: string; '*': string }
+}) {
 	const slug = params.slug ?? params['*']
 	if (!slug) throw data('Podcast slug is required', { status: 400 })
+
+	const origin = getDomainUrl(request)
 
 	const podcast = await prisma.podcast.findUnique({
 		where: { slug },
@@ -69,8 +89,22 @@ export async function loader({ params }: { params: { slug?: string; '*': string 
 	const channelLink = podcast.baseUrl || podcast.link || ''
 	const podcastImage =
 		podcast.image && podcast.image.updatedAt
-			? getPodcastImgSrc(podcast.image, podcast.image.updatedAt)
+			? absolutize(
+					getPodcastImgSrc(podcast.image, podcast.image.updatedAt),
+					podcast.baseUrl || origin,
+				)
 			: null
+
+	const categories = (
+		podcast.category && podcast.category !== 'Uncategorized'
+			? podcast.category.split(',').map((c) => c.trim())
+			: []
+	).filter(Boolean)
+	if (categories.length === 0) categories.push('Society & Culture')
+
+	const categoriesXml = categories
+		.map((c) => `<itunes:category text="${xmlEscape(c)}" />`)
+		.join('\n\t')
 
 	const header = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
@@ -87,7 +121,7 @@ export async function loader({ params }: { params: { slug?: string; '*': string 
 	<itunes:author>${xmlEscape(podcast.author)}</itunes:author>
 	<itunes:explicit>${podcast.explicit ? 'yes' : 'no'}</itunes:explicit>
 	<itunes:type>${xmlEscape(podcast.type)}</itunes:type>
-	<itunes:category>${xmlEscape(podcast.category)}</itunes:category>
+	${categoriesXml}
 	<itunes:owner>
 		<itunes:name>${xmlEscape(podcast.author)}</itunes:name>
 	</itunes:owner>
@@ -103,13 +137,17 @@ export async function loader({ params }: { params: { slug?: string; '*': string 
 				? appendPath(podcast.baseUrl, `episodes/${episode.id}`)
 				: episode.link || ''
 			const desc = xmlEscape(episode.description)
+			const enclosureUrl = absolutize(
+				episode.audioUrl || '',
+				podcast.baseUrl || origin,
+			)
 			return `<item>
 	<title>${xmlEscape(episode.title)}</title>
 	<link>${xmlEscape(itemLink)}</link>
 	<description>${desc}</description>
 	<guid isPermaLink="false">${xmlEscape(episode.guid)}</guid>
 	<pubDate>${new Date(episode.pubDate).toUTCString()}</pubDate>
-	<enclosure url="${xmlEscape(episode.audioUrl || '')}" length="${episode.audioSize || 0}" type="${xmlEscape(episode.audioType || 'audio/mpeg')}" />
+	<enclosure url="${xmlEscape(enclosureUrl)}" length="${episode.audioSize || 0}" type="${xmlEscape(episode.audioType || 'audio/mpeg')}" />
 	<itunes:duration>${episode.duration || 0}</itunes:duration>
 	<itunes:episodeType>${xmlEscape(episode.episodeType || 'full')}</itunes:episodeType>
 	${episode.season != null ? `<itunes:season>${episode.season}</itunes:season>` : ''}

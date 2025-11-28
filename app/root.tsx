@@ -181,7 +181,7 @@ function Document({
 				<script
 					defer
 					data-domain="roguecreators.awhb.dev"
-					src="https://plausible.awhb.dev/js/script.js"
+					src="/js/script.js"
 				/>
 				<script
 					nonce={nonce}
