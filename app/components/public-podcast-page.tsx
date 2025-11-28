@@ -123,6 +123,7 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 					) : (
 						episodes.map((episode) => (
 							<article
+								id={episode.id}
 								key={episode.id}
 								className="flex flex-col gap-3 border-b pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-start"
 							>
