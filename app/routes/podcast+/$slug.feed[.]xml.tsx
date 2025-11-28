@@ -1,6 +1,10 @@
 import { data } from 'react-router'
 import { prisma } from '#app/utils/db.server.ts'
-import { getDomainUrl, getPodcastImgSrc } from '#app/utils/misc.tsx'
+import {
+	getDomainUrl,
+	getEpisodeImgSrc,
+	getPodcastImgSrc,
+} from '#app/utils/misc.tsx'
 
 function xmlEscape(value: string | null | undefined) {
 	if (!value) return ''
@@ -10,6 +14,32 @@ function xmlEscape(value: string | null | undefined) {
 		.replace(/>/g, '&gt;')
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&apos;')
+}
+
+function cdata(value: string | null | undefined) {
+	if (!value) return '<![CDATA[]]>'
+	const safe = value.replace(/]]>/g, ']]]]><![CDATA[>')
+	return `<![CDATA[${safe}]]>`
+}
+
+function imageUrl(
+	image: { objectKey?: string | null; id?: string | null; updatedAt?: Date | string | null },
+	origin: string,
+	kind: 'podcast' | 'episode' = 'podcast',
+) {
+	const endpoint = process.env.AWS_ENDPOINT_URL_S3
+	const bucket = process.env.BUCKET_NAME
+	if (image.objectKey && endpoint && bucket) {
+		const base = endpoint.replace(/\/$/, '')
+		const key = image.objectKey.replace(/^\/+/, '')
+		return `${base}/${bucket}/${key}`
+	}
+
+	const path =
+		kind === 'podcast'
+			? getPodcastImgSrc(image, image.updatedAt)
+			: getEpisodeImgSrc(image)
+	return absolutize(path, origin)
 }
 
 function appendPath(base: string, path: string) {
@@ -79,6 +109,8 @@ export async function loader({
 					season: true,
 					episode: true,
 					explicit: true,
+					image: { select: { id: true, objectKey: true, updatedAt: true } },
+					transcript: { select: { id: true } },
 				},
 			},
 		},
@@ -89,10 +121,7 @@ export async function loader({
 	const channelLink = podcast.baseUrl || podcast.link || ''
 	const podcastImage =
 		podcast.image && podcast.image.updatedAt
-			? absolutize(
-					getPodcastImgSrc(podcast.image, podcast.image.updatedAt),
-					podcast.baseUrl || origin,
-				)
+			? imageUrl(podcast.image, podcast.baseUrl || origin)
 			: null
 
 	const categories = (
@@ -113,13 +142,13 @@ export async function loader({
 <channel>
 	<title>${xmlEscape(podcast.title)}</title>
 	<link>${xmlEscape(channelLink)}</link>
-	<description>${xmlEscape(podcast.description)}</description>
+	<description>${cdata(podcast.description)}</description>
 	<language>${xmlEscape(podcast.language)}</language>
 	<copyright>${xmlEscape(podcast.copyright)}</copyright>
 	<lastBuildDate>${new Date(podcast.lastBuildDate).toUTCString()}</lastBuildDate>
 	<generator>${xmlEscape('Podcasty')}</generator>
 	<itunes:author>${xmlEscape(podcast.author)}</itunes:author>
-	<itunes:explicit>${podcast.explicit ? 'yes' : 'no'}</itunes:explicit>
+	<itunes:explicit>${podcast.explicit ? 'true' : 'false'}</itunes:explicit>
 	<itunes:type>${xmlEscape(podcast.type)}</itunes:type>
 	${categoriesXml}
 	<itunes:owner>
@@ -133,14 +162,21 @@ export async function loader({
 
 	const items = podcast.episodes
 		.map((episode) => {
-			const itemLink = podcast.baseUrl
-				? appendPath(podcast.baseUrl, `episodes/${episode.id}`)
-				: episode.link || ''
-			const desc = xmlEscape(episode.description)
+			const desc = cdata(episode.description)
 			const enclosureUrl = absolutize(
 				episode.audioUrl || '',
 				podcast.baseUrl || origin,
 			)
+			const episodeImage = episode.image
+				? imageUrl(episode.image, podcast.baseUrl || origin, 'episode')
+				: null
+			const itemLink = appendPath(origin, `podcasts/${podcast.slug}#${episode.id}`)
+			const transcriptUrl = episode.transcript?.id
+				? absolutize(
+						`/resources/episode-transcript/${episode.id}`,
+						podcast.baseUrl || origin,
+					)
+				: null
 			return `<item>
 	<title>${xmlEscape(episode.title)}</title>
 	<link>${xmlEscape(itemLink)}</link>
@@ -152,7 +188,10 @@ export async function loader({
 	<itunes:episodeType>${xmlEscape(episode.episodeType || 'full')}</itunes:episodeType>
 	${episode.season != null ? `<itunes:season>${episode.season}</itunes:season>` : ''}
 	${episode.episode != null ? `<itunes:episode>${episode.episode}</itunes:episode>` : ''}
-	<itunes:explicit>${episode.explicit ? 'yes' : 'no'}</itunes:explicit>
+	${episode.episode != null ? `<podcast:episode>${episode.episode}</podcast:episode>` : ''}
+	<itunes:explicit>${episode.explicit ? 'true' : 'false'}</itunes:explicit>
+	${episodeImage ? `<itunes:image href="${xmlEscape(episodeImage)}" />` : ''}
+	${transcriptUrl ? `<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="application/x-subrip" />` : ''}
 </item>`
 		})
 		.join('\n')
