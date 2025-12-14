@@ -5,6 +5,10 @@ import {
 	getEpisodeImgSrc,
 	getPodcastImgSrc,
 } from '#app/utils/misc.tsx'
+import {
+	PUBLIC_EPISODE_PAGE_SIZE,
+	getSinglePodcastIfOnlyOne,
+} from '#app/utils/podcast-public.server.ts'
 
 function xmlEscape(value: string | null | undefined) {
 	if (!value) return ''
@@ -27,14 +31,6 @@ function imageUrl(
 	origin: string,
 	kind: 'podcast' | 'episode' = 'podcast',
 ) {
-	const endpoint = process.env.AWS_ENDPOINT_URL_S3
-	const bucket = process.env.BUCKET_NAME
-	if (image.objectKey && endpoint && bucket) {
-		const base = endpoint.replace(/\/$/, '')
-		const key = image.objectKey.replace(/^\/+/, '')
-		return `${base}/${bucket}/${key}`
-	}
-
 	const path =
 		kind === 'podcast'
 			? getPodcastImgSrc(image, image.updatedAt)
@@ -69,6 +65,8 @@ export async function loader({
 	if (!slug) throw data('Podcast slug is required', { status: 400 })
 
 	const origin = getDomainUrl(request)
+	const feedUrl = new URL(request.url).toString()
+	const singlePodcast = await getSinglePodcastIfOnlyOne()
 
 	const podcast = await prisma.podcast.findUnique({
 		where: { slug },
@@ -138,8 +136,10 @@ export async function loader({
 	const header = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
 	xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
-	xmlns:podcast="https://podcastindex.org/namespace/1.0">
+	xmlns:podcast="https://podcastindex.org/namespace/1.0"
+	xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
+	<atom:link rel="self" type="application/rss+xml" href="${xmlEscape(feedUrl)}" />
 	<title>${xmlEscape(podcast.title)}</title>
 	<link>${xmlEscape(channelLink)}</link>
 	<description>${cdata(podcast.description)}</description>
@@ -154,6 +154,7 @@ export async function loader({
 	<itunes:owner>
 		<itunes:name>${xmlEscape(podcast.author)}</itunes:name>
 	</itunes:owner>
+	<itunes:new-feed-url>${xmlEscape(feedUrl)}</itunes:new-feed-url>
 	<podcast:locked>${podcast.locked ? 'yes' : 'no'}</podcast:locked>
 	<podcast:guid>${xmlEscape(podcast.guid)}</podcast:guid>
 	<podcast:license>${xmlEscape(podcast.license)}</podcast:license>
@@ -164,19 +165,46 @@ export async function loader({
 		.map((episode) => {
 			const desc = cdata(episode.description)
 			const enclosureUrl = absolutize(
-				episode.audioUrl || '',
+				`/resources/audio/${episode.id}`,
 				podcast.baseUrl || origin,
 			)
 			const episodeImage = episode.image
 				? imageUrl(episode.image, podcast.baseUrl || origin, 'episode')
 				: null
-			const itemLink = appendPath(origin, `podcasts/${podcast.slug}#${episode.id}`)
+			const index = podcast.episodes.findIndex((e) => e.id === episode.id)
+			const pageNumber =
+				index >= 0 ? Math.floor(index / PUBLIC_EPISODE_PAGE_SIZE) + 1 : 1
+			const listBase =
+				singlePodcast?.slug === podcast.slug
+					? appendPath(origin, 'podcasts')
+					: appendPath(origin, `podcasts/${podcast.slug}`)
+			const itemLink = `${listBase}${pageNumber > 1 ? `?page=${pageNumber}` : ''}#${episode.id}`
 			const transcriptUrl = episode.transcript?.id
 				? absolutize(
 						`/resources/episode-transcript/${episode.id}`,
 						podcast.baseUrl || origin,
 					)
 				: null
+			const optionalFields = [
+				episode.season != null
+					? `<itunes:season>${episode.season}</itunes:season>`
+					: null,
+				episode.episode != null
+					? `<itunes:episode>${episode.episode}</itunes:episode>`
+					: null,
+				episode.episode != null
+					? `<podcast:episode>${episode.episode}</podcast:episode>`
+					: null,
+				episodeImage
+					? `<itunes:image href="${xmlEscape(episodeImage)}" />`
+					: null,
+				transcriptUrl
+					? `<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="application/x-subrip" />`
+					: null,
+			]
+				.filter(Boolean)
+				.map((line) => `\t${line}`)
+				.join('\n')
 			return `<item>
 	<title>${xmlEscape(episode.title)}</title>
 	<link>${xmlEscape(itemLink)}</link>
@@ -186,15 +214,10 @@ export async function loader({
 	<enclosure url="${xmlEscape(enclosureUrl)}" length="${episode.audioSize || 0}" type="${xmlEscape(episode.audioType || 'audio/mpeg')}" />
 	<itunes:duration>${episode.duration || 0}</itunes:duration>
 	<itunes:episodeType>${xmlEscape(episode.episodeType || 'full')}</itunes:episodeType>
-	${episode.season != null ? `<itunes:season>${episode.season}</itunes:season>` : ''}
-	${episode.episode != null ? `<itunes:episode>${episode.episode}</itunes:episode>` : ''}
-	${episode.episode != null ? `<podcast:episode>${episode.episode}</podcast:episode>` : ''}
-	<itunes:explicit>${episode.explicit ? 'true' : 'false'}</itunes:explicit>
-	${episodeImage ? `<itunes:image href="${xmlEscape(episodeImage)}" />` : ''}
-	${transcriptUrl ? `<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="application/x-subrip" />` : ''}
+${optionalFields ? `${optionalFields}\n` : ''}\t<itunes:explicit>${episode.explicit ? 'true' : 'false'}</itunes:explicit>
 </item>`
-		})
-		.join('\n')
+			})
+			.join('\n')
 
 	const rss = `${header}${items}\n</channel>\n</rss>`
 

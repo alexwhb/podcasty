@@ -257,7 +257,7 @@ export default function EpisodeEditor({
 										{episode?.audioUrl ? (
 											<audio
 												controls
-												src={episode.audioUrl}
+												src={`/resources/audio/${episode.id}`}
 												className="mt-2 w-full"
 												preload="metadata"
 											/>

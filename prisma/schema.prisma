@@ -219,6 +219,7 @@ model Podcast {
   image PodcastImage?
 
   episodes Episode[]
+  downloads EpisodeDownload[]
 
   // non-unique foreign key index
   @@index([ownerId])
@@ -268,6 +269,8 @@ model Episode {
 
   podcast   Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   podcastId String
+
+  downloads EpisodeDownload[]
 }
 
 model EpisodeImage {
@@ -291,6 +294,25 @@ model Transcript {
   blob        Bytes
   episode     Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   episodeId   String  @unique
+}
+
+model EpisodeDownload {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  episodeId String
+
+  podcast   Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  podcastId String
+
+  userAgent String?
+  ip        String?
+  referer   String?
+  range     String?
+
+  @@index([episodeId, createdAt])
+  @@index([podcastId, createdAt])
 }
 
 enum JobStatus {

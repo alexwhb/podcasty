@@ -194,8 +194,8 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 										<audio
 											controls
 											preload="none"
-											src={episode.audioUrl}
-											className="w-full max-w-md rounded-md border"
+											src={`/resources/audio/${episode.id}`}
+											className="w-full max-w-md rounded-md"
 										/>
 									) : (
 										<span className="text-sm text-muted-foreground">

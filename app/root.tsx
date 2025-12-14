@@ -180,8 +180,9 @@ function Document({
 				<meta name="viewport" content="width=device-width,initial-scale=1" />
 				<script
 					defer
+					nonce={nonce}
 					data-domain="roguecreators.awhb.dev"
-					src="/js/script.js"
+					src="https://plausible.awhb.dev/js/script.js"
 				/>
 				<script
 					nonce={nonce}
