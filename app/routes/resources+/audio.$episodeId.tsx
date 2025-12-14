@@ -112,6 +112,41 @@ async function maybeServeLocalAudio({
 	})
 }
 
+async function proxyRemoteAudio({
+	targetUrl,
+	request,
+	audioType,
+}: {
+	targetUrl: string
+	request: Request
+	audioType?: string | null
+}) {
+	const method = request.method === 'HEAD' ? 'HEAD' : 'GET'
+	const outgoingHeaders = new Headers()
+	const rangeHeader = request.headers.get('range')
+	if (rangeHeader) outgoingHeaders.set('Range', rangeHeader)
+	const acceptHeader = request.headers.get('accept')
+	if (acceptHeader) outgoingHeaders.set('Accept', acceptHeader)
+
+	const upstreamResponse = await fetch(targetUrl, {
+		method,
+		headers: outgoingHeaders,
+		redirect: 'follow',
+	})
+
+	const headers = new Headers(upstreamResponse.headers)
+	if (!headers.has('accept-ranges')) headers.set('Accept-Ranges', 'bytes')
+	if (audioType && !headers.has('content-type')) headers.set('Content-Type', audioType)
+	if (!headers.has('cache-control')) headers.set('Cache-Control', 'public, max-age=3600')
+
+	const body = method === 'HEAD' ? null : upstreamResponse.body
+
+	return new Response(body, {
+		status: upstreamResponse.status,
+		headers,
+	})
+}
+
 export async function loader({ params, request }: LoaderFunctionArgs) {
 	const episodeParam = params.episodeId
 	if (!episodeParam) throw data('Episode id is required', { status: 400 })
@@ -165,7 +200,16 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 	})
 	if (localResponse) return localResponse
 
-	return redirect(targetUrl, { status: 302 })
+	try {
+		return await proxyRemoteAudio({
+			targetUrl,
+			request,
+			audioType: episode.audioType,
+		})
+	} catch (error) {
+		console.error('Failed to proxy remote audio', error)
+		return redirect(targetUrl, { status: 302 })
+	}
 }
 
 export default function AudioRedirect() {
