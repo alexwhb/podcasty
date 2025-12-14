@@ -54,6 +54,57 @@ function absolutize(pathOrUrl: string | null | undefined, origin: string) {
 	}
 }
 
+function extractExtension(path: string) {
+	const lastSegment = path.split('/').pop()
+	if (!lastSegment) return null
+	const lastDot = lastSegment.lastIndexOf('.')
+	if (lastDot <= 0 || lastDot === lastSegment.length - 1) return null
+	return lastSegment.slice(lastDot + 1)
+}
+
+function getExtensionFromUrl(audioUrl: string | null | undefined) {
+	if (!audioUrl) return null
+	try {
+		return extractExtension(new URL(audioUrl, 'https://example.invalid').pathname)
+	} catch {
+		return extractExtension(audioUrl)
+	}
+}
+
+const AUDIO_TYPE_EXTENSION_MAP: Record<string, string> = {
+	'audio/mpeg': 'mp3',
+	'audio/mp3': 'mp3',
+	'audio/mp4': 'mp4',
+	'audio/aac': 'aac',
+	'audio/x-m4a': 'm4a',
+	'audio/wav': 'wav',
+	'audio/x-wav': 'wav',
+	'audio/ogg': 'ogg',
+	'audio/opus': 'opus',
+}
+
+function getExtensionFromAudioType(audioType: string | null | undefined) {
+	if (!audioType) return null
+	return AUDIO_TYPE_EXTENSION_MAP[audioType.toLowerCase()] || null
+}
+
+function buildEnclosureUrl(
+	episode: {
+		id: string
+		audioUrl?: string | null
+		audioType?: string | null
+	},
+	baseUrl: string | null | undefined,
+	origin: string,
+) {
+	const extension =
+		getExtensionFromUrl(episode.audioUrl) ||
+		getExtensionFromAudioType(episode.audioType) ||
+		'mp3'
+
+	return absolutize(`/resources/audio/${episode.id}.${extension}`, baseUrl || origin)
+}
+
 export async function loader({
 	request,
 	params,
@@ -164,10 +215,7 @@ export async function loader({
 	const items = podcast.episodes
 		.map((episode) => {
 			const desc = cdata(episode.description)
-			const enclosureUrl = absolutize(
-				`/resources/audio/${episode.id}`,
-				podcast.baseUrl || origin,
-			)
+			const enclosureUrl = buildEnclosureUrl(episode, podcast.baseUrl, origin)
 			const episodeImage = episode.image
 				? imageUrl(episode.image, podcast.baseUrl || origin, 'episode')
 				: null

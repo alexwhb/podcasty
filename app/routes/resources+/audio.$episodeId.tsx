@@ -28,8 +28,10 @@ function buildAudioUrl(audioUrl: string, request: Request, baseUrl?: string | nu
 }
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
-	const episodeId = params.episodeId
-	if (!episodeId) throw data('Episode id is required', { status: 400 })
+	const episodeParam = params.episodeId
+	if (!episodeParam) throw data('Episode id is required', { status: 400 })
+
+	const episodeId = episodeParam.split('.')[0]
 
 	const episode = await prisma.episode.findUnique({
 		where: { id: episodeId },
