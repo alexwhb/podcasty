@@ -62,6 +62,18 @@ function extractExtension(path: string) {
 	return lastSegment.slice(lastDot + 1)
 }
 
+function defaultPodcastImage(origin: string) {
+	return absolutize('/podcasty.svg', origin)
+}
+
+function ensureJpegExtension(url: string | null | undefined) {
+	if (!url) return url
+	const [path, query] = url.split('?')
+	if (path.includes('.')) return url
+	const withExt = `${path}.jpg`
+	return query ? `${withExt}?${query}` : withExt
+}
+
 function getExtensionFromUrl(audioUrl: string | null | undefined) {
 	if (!audioUrl) return null
 	try {
@@ -171,7 +183,11 @@ export async function loader({
 	const podcastImage =
 		podcast.image && podcast.image.updatedAt
 			? imageUrl(podcast.image, podcast.baseUrl || origin)
-			: null
+			: defaultPodcastImage(origin)
+	// Some validators expect a .jpg extension when serving JPEG images; add one for internal image routes.
+	const podcastImageForFeed = podcastImage?.includes('/resources/podcast-image/')
+		? ensureJpegExtension(podcastImage)
+		: podcastImage
 
 	const categories = (
 		podcast.category && podcast.category !== 'Uncategorized'
@@ -209,16 +225,19 @@ export async function loader({
 	<podcast:locked>${podcast.locked ? 'yes' : 'no'}</podcast:locked>
 	<podcast:guid>${xmlEscape(podcast.guid)}</podcast:guid>
 	<podcast:license>${xmlEscape(podcast.license)}</podcast:license>
-	${podcastImage ? `<itunes:image href="${xmlEscape(podcastImage)}" />` : ''}
+	${podcastImageForFeed ? `<itunes:image href="${xmlEscape(podcastImageForFeed)}" />` : ''}
 `
 
 	const items = podcast.episodes
 		.map((episode) => {
 			const desc = cdata(episode.description)
 			const enclosureUrl = buildEnclosureUrl(episode, podcast.baseUrl, origin)
-			const episodeImage = episode.image
+			const episodeImageRaw = episode.image
 				? imageUrl(episode.image, podcast.baseUrl || origin, 'episode')
-				: null
+				: podcastImageForFeed || defaultPodcastImage(origin)
+			const episodeImage = episodeImageRaw?.includes('/resources/episode-image/')
+				? ensureJpegExtension(episodeImageRaw)
+				: episodeImageRaw
 			const index = podcast.episodes.findIndex((e) => e.id === episode.id)
 			const pageNumber =
 				index >= 0 ? Math.floor(index / PUBLIC_EPISODE_PAGE_SIZE) + 1 : 1
@@ -227,12 +246,10 @@ export async function loader({
 					? appendPath(origin, 'podcasts')
 					: appendPath(origin, `podcasts/${podcast.slug}`)
 			const itemLink = `${listBase}${pageNumber > 1 ? `?page=${pageNumber}` : ''}#${episode.id}`
-			const transcriptUrl = episode.transcript?.id
-				? absolutize(
-						`/resources/episode-transcript/${episode.id}`,
-						podcast.baseUrl || origin,
-					)
-				: null
+			const transcriptUrl = absolutize(
+				`/resources/episode-transcript-public/${episode.id}`,
+				podcast.baseUrl || origin,
+			)
 			const optionalFields = [
 				episode.season != null
 					? `<itunes:season>${episode.season}</itunes:season>`
@@ -243,12 +260,8 @@ export async function loader({
 				episode.episode != null
 					? `<podcast:episode>${episode.episode}</podcast:episode>`
 					: null,
-				episodeImage
-					? `<itunes:image href="${xmlEscape(episodeImage)}" />`
-					: null,
-				transcriptUrl
-					? `<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="application/x-subrip" />`
-					: null,
+				`<itunes:image href="${xmlEscape(episodeImage)}" />`,
+				`<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="text/plain" />`,
 			]
 				.filter(Boolean)
 				.map((line) => `\t${line}`)
