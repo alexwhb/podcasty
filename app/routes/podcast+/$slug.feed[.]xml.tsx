@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { data } from 'react-router'
 import { prisma } from '#app/utils/db.server.ts'
 import {
@@ -113,6 +114,47 @@ function buildEnclosureUrl(
 		'mp3'
 
 	return absolutize(`/resources/audio/${episode.id}.${extension}`, baseUrl || origin)
+}
+
+// When each feed's content last changed, so Last-Modified moves forward on
+// any change, including deleted or unpublished episodes, which leave no
+// updatedAt behind. Kept in memory: after a restart the first request reports
+// "now", which costs podcast apps one full download.
+const feedVersions = new Map<string, { etag: string; lastModified: Date }>()
+
+function getFeedVersion(key: string, body: string) {
+	const hash = createHash('sha256').update(body).digest('base64url').slice(0, 27)
+	// Weak, because the response may be compressed on the way out.
+	const etag = `W/"${hash}"`
+	const known = feedVersions.get(key)
+	if (known?.etag === etag) return known
+	// HTTP dates have one-second precision.
+	const version = {
+		etag,
+		lastModified: new Date(Math.floor(Date.now() / 1000) * 1000),
+	}
+	if (feedVersions.size > 100) feedVersions.clear()
+	feedVersions.set(key, version)
+	return version
+}
+
+function isNotModified(
+	request: Request,
+	{ etag, lastModified }: { etag: string; lastModified: Date },
+) {
+	// If-None-Match wins over If-Modified-Since when both are sent.
+	const ifNoneMatch = request.headers.get('if-none-match')
+	if (ifNoneMatch) {
+		const opaque = (tag: string) => tag.trim().replace(/^W\//, '')
+		return (
+			ifNoneMatch.trim() === '*' ||
+			ifNoneMatch.split(',').some((tag) => opaque(tag) === opaque(etag))
+		)
+	}
+	const ifModifiedSince = request.headers.get('if-modified-since')
+	if (!ifModifiedSince) return false
+	const since = Date.parse(ifModifiedSince)
+	return !Number.isNaN(since) && lastModified.getTime() <= since
 }
 
 export async function loader({
@@ -287,10 +329,23 @@ ${optionalFields ? `${optionalFields}\n` : ''}\t<itunes:explicit>${episode.expli
 
 	const rss = `${header}${items}\n</channel>\n</rss>`
 
+	// Podcast apps poll feeds often; let them skip unchanged ones.
+	const version = getFeedVersion(`${podcast.id}|${origin}`, rss)
+	const cacheHeaders = {
+		ETag: version.etag,
+		'Last-Modified': version.lastModified.toUTCString(),
+		// Short, so scheduled episodes appear soon after their pubDate.
+		'Cache-Control': 'public, max-age=300',
+	}
+	if (isNotModified(request, version)) {
+		return new Response(null, { status: 304, headers: cacheHeaders })
+	}
+
 	return new Response(rss, {
 		status: 200,
 		headers: {
 			'Content-Type': 'application/rss+xml; charset=utf-8',
+			...cacheHeaders,
 		},
 	})
 }
