@@ -2,7 +2,10 @@ import { parseWithZod } from '@conform-to/zod'
 import { type ActionFunctionArgs, data, redirect } from 'react-router'
 import { v4 as uuidv4 } from 'uuid'
 import { EpisodeEditorSchema } from '#app/routes/users+/$username_+/__episode-editor.tsx'
-import { requireUserId } from '#app/utils/auth.server.ts'
+import {
+	requireEpisodeOwner,
+	requirePodcastOwner,
+} from '#app/utils/podcast-access.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { uploadEpisodeImage } from '#app/utils/storage.server.ts'
 
@@ -11,7 +14,10 @@ export async function action({
 	params,
 }: ActionFunctionArgs) {
 	if (params.podcastId == null) throw new Error('podcastId must be defined')
-	const userId = await requireUserId(request)
+	// The new-episode route has no episodeId; every other path edits an existing one.
+	const userId = params.episodeId
+		? await requireEpisodeOwner(request, params.podcastId, params.episodeId)
+		: await requirePodcastOwner(request, params.podcastId)
 	const formData = await request.formData()
 
 	const actionType = formData.get('_action')

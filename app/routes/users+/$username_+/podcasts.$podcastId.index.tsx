@@ -5,6 +5,7 @@ import PodcastEpisodes from '#app/components/podcast-episodes' // Import the Pod
 import { Spacer } from '#app/components/spacer.tsx'
 import { Button } from '#app/components/ui/button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
+import { requireEpisodeOwner } from '#app/utils/podcast-access.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getPodcastImgSrc } from '#app/utils/misc.tsx'
 import { getWhisperConfig } from '#app/utils/whisper.server.ts'
@@ -95,12 +96,15 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
-	// const userId = await requireUserId(request)
 	const formData = await request.formData()
 	const intent = formData.get('intent')
 
-	 if (intent === 'publish') {
-		const episodeId = formData.get('episodeId') as string
+	if (intent === 'publish') {
+		const episodeId = formData.get('episodeId')
+		if (typeof episodeId !== 'string') {
+			throw new Response('episodeId is required', { status: 400 })
+		}
+		await requireEpisodeOwner(request, params.podcastId, episodeId)
 		const isPublished = formData.get('isPublished') === 'true'
 		await prisma.episode.update({
 			where: { id: episodeId },

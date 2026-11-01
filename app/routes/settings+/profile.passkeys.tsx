@@ -43,7 +43,8 @@ export async function action({ request }: Route.ActionArgs) {
 	invariantResponse(typeof id === 'string', 'Passkey id required', {
 		status: 400,
 	})
-	await prisma.passkey.delete({ where: { id } })
+	const { count } = await prisma.passkey.deleteMany({ where: { id, userId } })
+	invariantResponse(count === 1, 'Passkey not found', { status: 404 })
 	return data({ status: 'deleted' } as const, { status: 200 })
 }
 

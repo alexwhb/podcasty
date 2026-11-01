@@ -4,6 +4,7 @@ import { type ActionFunctionArgs, data, redirect } from 'react-router'
 import { v4 as uuidv4 } from 'uuid'
 import { PodcastEditorSchema } from '#app/routes/users+/$username_+/__podcast-editor.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
+import { requirePodcastOwner } from '#app/utils/podcast-access.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { uploadHandler } from '#app/utils/file-uploads.server.ts'
 import { uploadPodcastImage } from '#app/utils/storage.server.ts'
@@ -15,7 +16,11 @@ function imageHasFile(image: { file?: File | null }): image is { file: File } {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-	const userId = await requireUserId(request)
+	// Editing (and deleting) an existing podcast requires owning it; the
+	// new-podcast route has no podcastId.
+	const userId = params.podcastId
+		? await requirePodcastOwner(request, params.podcastId)
+		: await requireUserId(request)
 	const formData = await parseFormData(
 		request,
 		{ maxFileSize: MAX_UPLOAD_SIZE },
@@ -94,6 +99,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	image,
 	} = submission.value
 	const imageId = image?.id ?? null
+	// The id comes from the form body, so it must match the podcast in the URL.
+	if ((podcastId ?? undefined) !== params.podcastId) {
+		throw new Response('Podcast not found', { status: 404 })
+	}
 
 	// Check if the podcast has an existing image before attempting to delete
 	const existingPodcast = podcastId
