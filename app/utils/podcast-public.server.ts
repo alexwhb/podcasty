@@ -51,7 +51,11 @@ export async function loadPublicPodcast({
 
 	const [episodes, totalEpisodes] = await prisma.$transaction([
 		prisma.episode.findMany({
-			where: { podcastId: podcast.id, isPublished: true },
+			where: {
+				podcastId: podcast.id,
+				isPublished: true,
+				pubDate: { lte: new Date() },
+			},
 			orderBy: { pubDate: 'desc' },
 			select: {
 				id: true,
@@ -70,7 +74,11 @@ export async function loadPublicPodcast({
 			take: PUBLIC_EPISODE_PAGE_SIZE,
 		}),
 		prisma.episode.count({
-			where: { podcastId: podcast.id, isPublished: true },
+			where: {
+				podcastId: podcast.id,
+				isPublished: true,
+				pubDate: { lte: new Date() },
+			},
 		}),
 	])
 

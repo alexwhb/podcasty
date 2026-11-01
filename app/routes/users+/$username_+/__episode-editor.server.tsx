@@ -69,15 +69,20 @@ export async function action({
 		image,
 	} = submission.value
 
-	const shouldPublishNow =
-		isPublished ||
-		(publishMode === 'schedule' && new Date(pubDate) <= new Date())
+	// Scheduled episodes are stored as published and stay out of public views
+	// until pubDate. Drafts are unpublished and never go live on their own.
+	const shouldPublish = isPublished || publishMode === 'schedule'
+	// "Publish now" means now, even if a future date is still selected.
+	const effectivePubDate =
+		isPublished && new Date(pubDate) > new Date()
+			? new Date().toISOString()
+			: pubDate
 	const episodeRecord = await prisma.episode.upsert({
 		where: { id: params.episodeId ?? 'new_episode' },
 		create: {
 			title,
 			description,
-			pubDate, // backend expects a Date object
+			pubDate: effectivePubDate,
 			explicit,
 			guid: uuidv4(),
 			duration: 0, // todo update me
@@ -88,17 +93,17 @@ export async function action({
 			audioType: '', // todo
 			season,
 			episode,
-			isPublished: shouldPublishNow,
+			isPublished: shouldPublish,
 			podcastId: params.podcastId,
 		},
 		update: {
 			title,
 			description,
-			pubDate,
+			pubDate: effectivePubDate,
 			explicit,
 			season,
 			episode,
-			isPublished: shouldPublishNow,
+			isPublished: shouldPublish,
 			episodeType,
 		},
 	})

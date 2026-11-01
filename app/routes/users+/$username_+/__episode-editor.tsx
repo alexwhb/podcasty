@@ -48,7 +48,11 @@ export const EpisodeEditorSchema = z.object({
 	season: z.number().optional(),
 	episode: z.number().optional(),
 	explicit: z.boolean().default(false),
-	isPublished: z.coerce.boolean().default(false),
+	// From a hidden input; z.coerce.boolean() would turn "false" into true.
+	isPublished: z
+		.enum(['true', 'false'])
+		.default('false')
+		.transform((value) => value === 'true'),
 	publishMode: z.enum(['draft', 'schedule']).default('draft'),
 	episodeType: z.enum(['full', 'trailer', 'bonus']),
 	audioFile: z.string().optional(), // Added for uploaded file
@@ -96,12 +100,14 @@ export default function EpisodeEditor({
 	const [selectedDate, setSelectedDate] = useState(initialDate)
 	const [episodeNum, setEpisode] = useState<number | null>(null)
 	const [seasonNum, setSeasonNum] = useState<number | null>(null)
-	const initialIsPublished = episode?.isPublished ?? false
-	const initialPublishMode = useMemo(() => {
-		if (initialIsPublished) return 'draft'
-		if (episode?.pubDate && new Date(episode.pubDate) > new Date()) return 'schedule'
-		return 'draft'
-	}, [episode?.pubDate, initialIsPublished])
+	// A scheduled episode is stored as published with a future pubDate.
+	const isScheduled = Boolean(
+		episode?.isPublished &&
+			episode.pubDate &&
+			new Date(episode.pubDate) > new Date(),
+	)
+	const initialIsPublished = Boolean(episode?.isPublished) && !isScheduled
+	const initialPublishMode = isScheduled ? 'schedule' : 'draft'
 	const [publishMode, setPublishMode] = useState<'draft' | 'schedule'>(initialPublishMode)
 	const [isPublished, setIsPublished] = useState(initialIsPublished)
 	const [uploadedFile, setUploadedFile] = useState<string | null>(null)
@@ -135,7 +141,7 @@ export default function EpisodeEditor({
 			explicit: episode?.explicit || false,
 			season: episode?.season,
 			episode: episode?.episode,
-			isPublished: initialIsPublished,
+			isPublished: String(initialIsPublished),
 			publishMode: initialPublishMode,
 			episodeType: episode?.episodeType || 'full',
 			image: episode?.image,
@@ -505,7 +511,7 @@ export default function EpisodeEditor({
 								</Select>
 								<input type="hidden" name="publishMode" value={publishMode} />
 								<p className="text-xs text-muted-foreground">
-									Use “Schedule” to auto-publish at the chosen date and time.
+									A scheduled episode goes live in the feed at the chosen date and time.
 								</p>
 							</div>
 						) : (

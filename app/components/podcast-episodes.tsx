@@ -281,7 +281,9 @@ export default function PodcastEpisodes({
 							{formatDuration(episode.duration)}
 						</div>
 					</div>
-					{episode.isPublished ? (
+					{episode.isPublished && new Date(episode.pubDate) > new Date() ? (
+						<EpisodeStatusIndicator variant="amber" title="Scheduled" />
+					) : episode.isPublished ? (
 						<EpisodeStatusIndicator variant="green" title="Live Now" />
 					) : (
 						<EpisodeStatusIndicator variant="red" title="Draft" />

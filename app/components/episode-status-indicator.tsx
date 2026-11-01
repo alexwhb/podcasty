@@ -5,7 +5,7 @@ const EpisodeStatusIndicator = ({
   variant = "green", 
   title 
 }: {
-  variant?: "green" | "red";
+  variant?: "green" | "red" | "amber";
   title?: string;
 }) => {
   const baseStyles = "relative inline-block w-8 h-8"
@@ -22,6 +22,11 @@ const EpisodeStatusIndicator = ({
       outer: `${outerStyles} bg-red-500`,
       inner: `${innerStyles} bg-red-700`,
       tooltip: title || "Unpublished"
+    },
+    amber: {
+      outer: `${outerStyles} bg-amber-500`,
+      inner: `${innerStyles} bg-amber-700`,
+      tooltip: title || "Scheduled"
     }
   }
 

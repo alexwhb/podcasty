@@ -153,7 +153,7 @@ export async function loader({
 			baseUrl: true,
 			image: { select: { id: true, objectKey: true, updatedAt: true } },
 			episodes: {
-				where: { isPublished: true },
+				where: { isPublished: true, pubDate: { lte: new Date() } },
 				orderBy: { pubDate: 'desc' },
 				select: {
 					id: true,
