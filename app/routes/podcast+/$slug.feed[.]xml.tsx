@@ -151,7 +151,12 @@ export async function loader({
 			baseUrl: true,
 			image: { select: { id: true, objectKey: true, updatedAt: true } },
 			episodes: {
-				where: { isPublished: true, pubDate: { lte: new Date() } },
+				where: {
+					isPublished: true,
+					pubDate: { lte: new Date() },
+					// No audio means no valid enclosure, which podcast apps reject.
+					audioUrl: { not: '' },
+				},
 				orderBy: { pubDate: 'desc' },
 				select: {
 					id: true,

@@ -543,9 +543,9 @@ export default function EpisodeEditor({
 
 					<div className="flex gap-4 pb-10">
 						<Button type="submit">Save</Button>
-						<Link to={`../`}>
-							<Button variant="outline">Cancel</Button>
-						</Link>
+						<Button variant="outline" asChild>
+							<Link to="../">Cancel</Link>
+						</Button>
 
 						<span className="ml-auto">
 							<DeleteDialogWithInput

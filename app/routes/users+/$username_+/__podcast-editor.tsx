@@ -250,9 +250,9 @@ export default function PodcastEditor({
 					<hr />
 
 					<div className="flex gap-4">
-						<Link to="../">
-							<Button variant="outline">Cancel</Button>
-						</Link>
+						<Button variant="outline" asChild>
+							<Link to="../">Cancel</Link>
+						</Button>
 						<Button type="submit">Save</Button>
 
 						<span className="ml-auto">
