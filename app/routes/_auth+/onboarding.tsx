@@ -7,7 +7,12 @@ import { z } from 'zod'
 import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
-import { requireAnonymous, sessionKey, signup } from '#app/utils/auth.server.ts'
+import {
+	requireAnonymous,
+	requireSignupAllowed,
+	sessionKey,
+	signup,
+} from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
@@ -39,6 +44,7 @@ const SignupFormSchema = SignupFormSchemaBase
 
 async function requireOnboardingEmail(request: Request) {
 	await requireAnonymous(request)
+	await requireSignupAllowed()
 	const verifySession = await verifySessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
@@ -102,7 +108,7 @@ export async function action({ request }: Route.ActionArgs) {
 		)
 	}
 
-	const { session, remember, redirectTo } = submission.value
+	const { session, remember, redirectTo, username } = submission.value
 
 	const authSession = await authSessionStorage.getSession(
 		request.headers.get('cookie'),
@@ -122,7 +128,7 @@ export async function action({ request }: Route.ActionArgs) {
 	)
 
 	return redirectWithToast(
-		safeRedirect(redirectTo || `/users/${session.userId}/podcasts`),
+		safeRedirect(redirectTo || `/users/${username.toLowerCase()}/podcasts`),
 		{ title: 'Welcome', description: 'Thanks for signing up!' },
 		{ headers },
 	)

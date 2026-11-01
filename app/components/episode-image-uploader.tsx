@@ -25,9 +25,8 @@ export default function EpisodeImageUploader({
       setError("File rejected. Please select a JPEG or PNG file under 50 MB.");
       return;
     }
-    if (acceptedFiles.length === 0) return;
-
     const file = acceptedFiles[0];
+    if (!file) return;
     setUploading(true);
     setError(null);
 
@@ -44,7 +43,10 @@ export default function EpisodeImageUploader({
         method: "POST",
         body: formData,
       });
-      const data = await response.json();
+      const data = (await response.json()) as {
+        success?: boolean;
+        imageUrl?: string;
+      };
       if (data.success && data.imageUrl) {
         onUpload(data.imageUrl);
       } else {

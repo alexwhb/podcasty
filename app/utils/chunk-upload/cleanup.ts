@@ -1,4 +1,4 @@
-import { type StorageProvider } from '#app/routes/test+/types.ts'
+import { type StorageProvider } from './types.ts'
 import { prisma } from '#app/utils/db.server.ts'
 
 // TODO hook me up to some sort of cron.

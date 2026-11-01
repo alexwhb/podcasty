@@ -14,6 +14,7 @@ import { z } from 'zod'
 import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
 import {
 	Field,
+	getSwitchProps,
 	MinimalEditorField,
 	NumberField,
 } from '#app/components/forms.tsx'
@@ -38,7 +39,7 @@ import { Textarea } from '#app/components/ui/textarea'
 import Uploader from '#app/components/uploader.tsx'
 import { useChunkUploader } from '#app/hooks/use-chunk-uploader.ts'
 import { getEpisodeImgSrc } from '#app/utils/misc.tsx'
-import { type Info } from './+types/podcasts.$podcastId.episode.$episodeId.new'
+import { type Info } from './+types/podcasts.$podcastId.episode.$episodeId.edit.ts'
 
 export const EpisodeEditorSchema = z.object({
 	title: z.string().min(1, 'Title is required.').max(100),
@@ -121,7 +122,7 @@ export default function EpisodeEditor({
 	)
 	const isoDate = useMemo(() => selectedDate.toISOString(), [selectedDate])
 
-	const [selectedType, setSelectedType] = useState(episode?.type || 'full')
+	const [selectedType, setSelectedType] = useState(episode?.episodeType || 'full')
 
 	const defaultValues = useMemo(
 		() => ({
@@ -136,7 +137,7 @@ export default function EpisodeEditor({
 			episode: episode?.episode,
 			isPublished: initialIsPublished,
 			publishMode: initialPublishMode,
-			episodeType: episode?.type || 'full',
+			episodeType: episode?.episodeType || 'full',
 			image: episode?.image,
 		}),
 		[episode, initialPublishMode, initialIsPublished],
@@ -148,7 +149,8 @@ export default function EpisodeEditor({
 		onValidate({ formData }) {
 			return parseWithZod(formData, { schema: EpisodeEditorSchema })
 		},
-		lastResult: actionData?.result,
+		lastResult:
+			actionData && 'result' in actionData ? actionData.result : undefined,
 		defaultValue: defaultValues,
 		shouldRevalidate: 'onBlur',
 	})
@@ -472,13 +474,8 @@ export default function EpisodeEditor({
 
 					<div className="space-y-3 py-2">
 						<div className="flex items-center gap-3">
-							<Label htmlFor="explicit">Explicit</Label>
-							<Switch
-								id="explicit"
-								defaultChecked={episode?.explicit ?? false}
-								{...getInputProps(fields.explicit, { type: 'checkbox' })}
-								onChange={(e) => fields.explicit.onChange(e.target.checked)}
-							/>
+							<Label htmlFor={fields.explicit.id}>Explicit</Label>
+							<Switch {...getSwitchProps(fields.explicit)} />
 						</div>
 						<div className="flex items-center gap-3">
 							<Label htmlFor="is-published">Publish now</Label>

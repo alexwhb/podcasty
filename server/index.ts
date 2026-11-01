@@ -265,7 +265,8 @@ ${chalk.bold('Press Ctrl+C to stop')}
 	const importJobWorker = async () => {
 		const module: typeof import('#app/utils/job-queue.server.ts') = IS_DEV
 			? await import('#app/utils/job-queue.server.ts')
-			: await import('./utils/job-queue.server.js')
+			: // @ts-expect-error -- exists only in server-build/, next to the built index.js
+				await import('./utils/job-queue.server.js')
 		return module.startJobWorker
 	}
 

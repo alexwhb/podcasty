@@ -68,7 +68,7 @@ function defaultPodcastImage(origin: string) {
 
 function ensureJpegExtension(url: string | null | undefined) {
 	if (!url) return url
-	const [path, query] = url.split('?')
+	const [path = '', query] = url.split('?')
 	if (path.includes('.')) return url
 	const withExt = `${path}.jpg`
 	return query ? `${withExt}?${query}` : withExt

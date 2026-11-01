@@ -6,8 +6,8 @@ import { Button } from '#app/components/ui/button.tsx'
 import { getEpisodeImgSrc, getPodcastImgSrc } from '#app/utils/misc.tsx'
 import { type PublicPodcastData } from '#app/utils/podcast-public.server.ts'
 
-function formatPubDate(dateString: string) {
-	return new Date(dateString).toLocaleDateString(undefined, {
+function formatPubDate(date: string | Date) {
+	return new Date(date).toLocaleDateString(undefined, {
 		month: 'short',
 		day: 'numeric',
 		year: 'numeric',

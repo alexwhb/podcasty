@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { data, Form, useLoaderData, useSearchParams } from 'react-router'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
@@ -107,7 +108,7 @@ export async function action({ request }: Route.ActionArgs) {
 			status: 'pending',
 			attempts: 0,
 			lastError: null,
-			result: null,
+			result: Prisma.DbNull,
 			startedAt: null,
 			completedAt: null,
 			updatedAt: new Date(),

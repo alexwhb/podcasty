@@ -30,8 +30,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 		where: searchTerm
 			? {
 					OR: [
-						{ title: { contains: searchTerm, mode: 'insensitive' } },
-						{ author: { contains: searchTerm, mode: 'insensitive' } },
+						{ title: { contains: searchTerm } },
+						{ author: { contains: searchTerm } },
 					],
 				}
 			: undefined,
@@ -68,7 +68,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export default function PodcastsSearch({
 	loaderData,
-}: Route.ComponentProps<typeof loader>) {
+}: Route.ComponentProps) {
 	const isPending = useDelayedIsPending({
 		formMethod: 'GET',
 		formAction: '/podcasts',

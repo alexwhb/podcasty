@@ -4,7 +4,10 @@ import { Input } from '#app/components/ui/input.tsx';
 import { cn } from '#app/lib/utils.ts';
 
 interface NumberInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+  extends Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    'onChange' | 'value'
+  > {
   value: number | null;
   onChange: (value: number | null) => void;
   min?: number;

@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { ErrorList, Field } from '#app/components/forms.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
+import { requireSignupAllowed } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { sendEmail } from '#app/utils/email.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
@@ -24,7 +25,13 @@ const SignupSchema = z.object({
 	email: EmailSchema,
 })
 
+export async function loader() {
+	await requireSignupAllowed()
+	return {}
+}
+
 export async function action({ request }: Route.ActionArgs) {
+	await requireSignupAllowed()
 	const formData = await request.formData()
 
 	await checkHoneypot(formData)

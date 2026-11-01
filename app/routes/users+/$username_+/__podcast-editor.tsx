@@ -14,6 +14,7 @@ import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
 import {
 	ErrorList,
 	Field,
+	getSwitchProps,
 	MinimalEditorField,
 	TagField,
 } from '#app/components/forms.tsx'
@@ -30,7 +31,7 @@ import {
 import { Switch } from '#app/components/ui/switch.tsx'
 import { LANGUAGES } from '#app/lib/utils.ts'
 import { cn, getPodcastImgSrc } from '#app/utils/misc.tsx'
-import { type Info } from './+types/podcasts.$podcastId.new'
+import { type Info } from './+types/podcasts.$podcastId.edit.ts'
 
 // TODO move this out into it's own file, so we can easily reuse it.
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10MB as an example
@@ -89,7 +90,8 @@ export default function PodcastEditor({
 	const [form, fields] = useForm({
 		id: 'podcast-editor',
 		constraint: getZodConstraint(PodcastEditorSchema),
-		lastResult: actionData?.result,
+		lastResult:
+			actionData && 'result' in actionData ? actionData.result : undefined,
 		onValidate({ formData }) {
 			const res = parseWithZod(formData, { schema: PodcastEditorSchema })
 			console.log(res)
@@ -236,25 +238,11 @@ export default function PodcastEditor({
 
 					{/* Explicit Switch */}
 					<div className="flex items-center space-x-2 py-2">
-						<Label htmlFor="explicit">Explicit</Label>
-						<Switch
-							id="explicit"
-							defaultChecked={podcast?.explicit ?? false}
-							{...getInputProps(fields.explicit, { type: 'checkbox' })}
-							onChange={(e) => {
-								fields.explicit.onChange(e.target.checked)
-							}}
-						/>
+						<Label htmlFor={fields.explicit.id}>Explicit</Label>
+						<Switch {...getSwitchProps(fields.explicit)} />
 						<span className="px-4"></span>
-						<Label htmlFor="locked">Is Locked</Label>
-						<Switch
-							id="locked"
-							defaultChecked={podcast?.locked ?? true}
-							{...getInputProps(fields.locked, { type: 'checkbox' })}
-							onChange={(e) => {
-								fields.locked.onChange(e.target.checked)
-							}}
-						/>
+						<Label htmlFor={fields.locked.id}>Is Locked</Label>
+						<Switch {...getSwitchProps(fields.locked)} />
 					</div>
 
 					<hr />

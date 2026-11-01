@@ -1,13 +1,13 @@
 import { type Connection, type Password, type User } from '@prisma/client'
 import { createHash } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { redirect } from 'react-router'
+import { data, redirect } from 'react-router'
 import { Authenticator } from 'remix-auth'
 import { safeRedirect } from 'remix-utils/safe-redirect'
 import { connectionSessionStorage, providers } from './connections.server.ts'
 import { prisma } from './db.server.ts'
 import { combineHeaders, downloadFile } from './misc.tsx'
-import { type ProviderUser } from './providers/provider.ts'
+import { type AuthProvider, type ProviderUser } from './providers/provider.ts'
 import { authSessionStorage } from './session.server.ts'
 import { uploadProfileImage } from './storage.server.ts'
 
@@ -33,7 +33,7 @@ async function ensureRolesExist(names: Array<string>) {
 	)
 }
 
-for (const [providerName, provider] of Object.entries(providers)) {
+for (const [providerName, provider] of Object.entries<AuthProvider>(providers)) {
 	authenticator.use(provider.getAuthStrategy(), providerName)
 }
 
@@ -121,6 +121,21 @@ export async function resetUserPassword({
 			},
 		},
 	})
+}
+
+/**
+ * Signup is closed once an account exists, so only the first visitor can
+ * create the owner account. Set ALLOW_SIGNUP=true to open it to everyone.
+ */
+export async function isSignupAllowed() {
+	if (process.env.ALLOW_SIGNUP === 'true') return true
+	return (await prisma.user.count()) === 0
+}
+
+export async function requireSignupAllowed() {
+	if (!(await isSignupAllowed())) {
+		throw data('Not found', { status: 404 })
+	}
 }
 
 export async function signup({
