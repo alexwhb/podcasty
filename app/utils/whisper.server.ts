@@ -197,13 +197,14 @@ export async function transcribeEpisodeAudio({
 			headers.Authorization = config.authHeader
 		}
 		try {
-			response = await fetch(config.endpoint, {
+			const init: RequestInit & { dispatcher: Agent } = {
 				method: 'POST',
 				headers,
 				body: form,
 				signal: abortController.signal,
 				dispatcher: whisperDispatcher,
-			})
+			}
+			response = await fetch(config.endpoint, init)
 		} catch (error) {
 			clearTimeout(timeout2)
 			throw data(

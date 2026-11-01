@@ -6,7 +6,9 @@ import {
 	importPodcastFromRss,
 } from '#app/utils/podcast-import.server.ts'
 
-type JobHandler = (job: Awaited<ReturnType<typeof getNextJob>>) => Promise<void>
+type JobHandler = (
+	job: NonNullable<Awaited<ReturnType<typeof getNextJob>>>,
+) => Promise<void>
 
 const transcriptionPayloadSchema = z.object({
 	episodeId: z.string(),

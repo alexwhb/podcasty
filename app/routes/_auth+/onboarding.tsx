@@ -108,7 +108,7 @@ export async function action({ request }: Route.ActionArgs) {
 		)
 	}
 
-	const { session, remember, redirectTo } = submission.value
+	const { session, remember, redirectTo, username } = submission.value
 
 	const authSession = await authSessionStorage.getSession(
 		request.headers.get('cookie'),
@@ -128,7 +128,7 @@ export async function action({ request }: Route.ActionArgs) {
 	)
 
 	return redirectWithToast(
-		safeRedirect(redirectTo || `/users/${session.userId}/podcasts`),
+		safeRedirect(redirectTo || `/users/${username.toLowerCase()}/podcasts`),
 		{ title: 'Welcome', description: 'Thanks for signing up!' },
 		{ headers },
 	)

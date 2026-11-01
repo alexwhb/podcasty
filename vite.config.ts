@@ -1,7 +1,7 @@
 import { reactRouter } from '@react-router/dev/vite'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, type UserConfig } from 'vite'
 import { envOnlyMacros } from 'vite-env-only'
 
 const MODE = process.env.NODE_ENV
@@ -27,7 +27,7 @@ const sentryPluginOptions = hasSentryEnv
 			release: {
 				name: process.env.COMMIT_SHA,
 				setCommits: {
-					auto: true,
+					auto: true as const,
 				},
 			},
 			sourcemaps: {
@@ -39,7 +39,9 @@ const sentryPluginOptions = hasSentryEnv
 		}
 	: null
 
-export default defineConfig({
+// `sentryConfig` isn't a Vite option; the React Router Sentry buildEnd hook
+// reads it from the resolved config.
+const config: UserConfig & { sentryConfig?: unknown } = {
 	build: {
 		target: 'es2022',
 		cssMinify: MODE === 'production',
@@ -97,4 +99,6 @@ export default defineConfig({
 			all: true,
 		},
 	},
-})
+}
+
+export default defineConfig(config)

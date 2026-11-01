@@ -11,8 +11,6 @@ export default {
 	// Defaults to true. Set to false to enable SPA for all routes.
 	ssr: true,
 
-	routeDiscovery: { mode: 'initial' },
-
 	future: {
 		unstable_optimizeDeps: true,
 	},
@@ -22,7 +20,7 @@ export default {
 			MODE === 'production' &&
 			hasSentryEnv &&
 			// sentryOnBuildEnd expects this to be present, so skip otherwise
-			viteConfig?.sentryConfig
+			(viteConfig as { sentryConfig?: unknown }).sentryConfig
 		) {
 			await sentryOnBuildEnd({ viteConfig, reactRouterConfig, buildManifest })
 		}

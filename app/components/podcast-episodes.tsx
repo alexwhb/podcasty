@@ -23,22 +23,20 @@ import { Textarea } from '#app/components/ui/textarea'
 interface Episode {
 	id: string
 	title: string
-	description: string
-	pubDate: string
+	pubDate: string | Date
 	explicit: boolean
 	duration: number
-	season?: number
+	season: number | null
+	episode: number | null
 	isPublished: boolean
-	number?: number
-	image?: { id?: string; objectKey?: string }
-	transcript?: { id: string } | null
+	image: { id: string; objectKey: string | null } | null
+	transcript: { id: string } | null
 }
 
 interface Podcast {
 	id: string
 	title: string
-	image?: { id?: string; objectKey?: string }
-	episodes: Episode[]
+	image: { id: string; objectKey: string | null } | null
 }
 
 interface PodcastEpisodesProps {
@@ -60,8 +58,8 @@ interface PodcastEpisodesProps {
 	jobPollPath?: string
 }
 
-function formatPubDate(dateString: string): string {
-	const date = new Date(dateString)
+function formatPubDate(value: string | Date): string {
+	const date = new Date(value)
 	const options: Intl.DateTimeFormatOptions = {
 		month: '2-digit',
 		day: '2-digit',
@@ -147,7 +145,11 @@ export default function PodcastEpisodes({
 			if (!jobId) return
 			try {
 				const resp = await fetch(`${jobPollPath}/${jobId}`)
-				const data = await resp.json()
+				const data = (await resp.json()) as {
+					status?: string
+					error?: string
+					transcript?: string
+				}
 				if (!resp.ok) {
 					throw new Error(data?.error || 'Job failed')
 				}
@@ -267,9 +269,9 @@ export default function PodcastEpisodes({
 									</span>
 								)}
 							</div>
-							{episode.season !== undefined && episode.number !== undefined && (
+							{episode.season != null && episode.episode != null && (
 								<div className="text-sm text-gray-600">
-									{`S ${episode.season} E ${episode.number}`}
+									{`S ${episode.season} E ${episode.episode}`}
 								</div>
 							)}
 						</div>
@@ -383,7 +385,12 @@ export default function PodcastEpisodes({
 													method: 'post',
 												},
 											)
-											const result = await response.json()
+											const result = (await response.json()) as {
+												success?: boolean
+												error?: string
+												jobId?: string
+												transcript?: string
+											}
 											if (!response.ok || !result.success) {
 												throw new Error(result.error || 'Failed to generate')
 											}

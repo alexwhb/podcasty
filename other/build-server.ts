@@ -19,7 +19,7 @@ const allFiles = globSync(globsafe(here('../server/**/*.*')), {
 	],
 })
 
-const entries = []
+const entries: Array<string> = []
 for (const file of allFiles) {
 	if (/\.(ts|js|tsx|jsx)$/.test(file)) {
 		entries.push(file)

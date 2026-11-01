@@ -7,7 +7,7 @@ import { safeRedirect } from 'remix-utils/safe-redirect'
 import { connectionSessionStorage, providers } from './connections.server.ts'
 import { prisma } from './db.server.ts'
 import { combineHeaders, downloadFile } from './misc.tsx'
-import { type ProviderUser } from './providers/provider.ts'
+import { type AuthProvider, type ProviderUser } from './providers/provider.ts'
 import { authSessionStorage } from './session.server.ts'
 import { uploadProfileImage } from './storage.server.ts'
 
@@ -33,7 +33,7 @@ async function ensureRolesExist(names: Array<string>) {
 	)
 }
 
-for (const [providerName, provider] of Object.entries(providers)) {
+for (const [providerName, provider] of Object.entries<AuthProvider>(providers)) {
 	authenticator.use(provider.getAuthStrategy(), providerName)
 }
 

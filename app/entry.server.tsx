@@ -76,7 +76,6 @@ export default async function handleRequest(...args: DocRequestArgs) {
 						contentSecurityPolicy: {
 							reportOnly: false,
 							directives: {
-								'default-src': ["'self'"],
 								fetch: {
 									'connect-src': [
 										MODE === 'development' ? 'ws:' : undefined,
@@ -87,20 +86,15 @@ export default async function handleRequest(...args: DocRequestArgs) {
 									'font-src': ["'self'"],
 									'frame-src': ["'self'"],
 									'img-src': ["'self'", 'data:'],
-								'script-src': [
-									"'self'",
-									`'nonce-${nonce}'`,
-									'https://plausible.awhb.dev',
-								],
-								'script-src-attr': [`'nonce-${nonce}'`],
+									'script-src': [
+										"'self'",
+										`'nonce-${nonce}'`,
+										'https://plausible.awhb.dev',
+									],
+									'script-src-attr': [`'nonce-${nonce}'`],
+								},
 							},
-							'style-src': ["'self'", `'nonce-${nonce}'`],
-							'img-src': ["'self'", 'data:'],
-							'font-src': ["'self'"],
-							'frame-src': ["'self'"],
-							'object-src': ["'none'"],
 						},
-					},
 				})
 					resolve(
 						new Response(createReadableStreamFromReadable(body), {

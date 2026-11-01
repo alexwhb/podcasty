@@ -1,4 +1,5 @@
-import { useInputControl,
+import { getInputProps,
+	useInputControl,
 	unstable_useControl as useControl,
 	type FieldMetadata } from '@conform-to/react'
 import { type CheckboxProps } from '@radix-ui/react-checkbox'
@@ -156,15 +157,19 @@ export function CheckboxField({
 	className,
 }: {
 	labelProps: React.ComponentProps<'label'>
-	buttonProps: CheckboxProps & {
+	// Accepts conform's getInputProps output; its input `type` is dropped
+	// because Checkbox renders a button.
+	buttonProps: Omit<CheckboxProps, 'type'> & {
 		name: string
 		form: string
 		value?: string
+		type?: string
 	}
 	errors?: ListOfErrors
 	className?: string
 }) {
-	const { key, defaultChecked, ...checkboxProps } = buttonProps
+	const { key, defaultChecked, type: ignoredType, ...checkboxProps } =
+		buttonProps
 	const fallbackId = useId()
 	const checkedValue = buttonProps.value ?? 'on'
 	const input = useInputControl({
@@ -395,6 +400,17 @@ export function NumberField({
 			</div>
 		</div>
 	)
+}
+
+/**
+ * Conform's checkbox props for a Radix Switch. Switch renders a button and
+ * sets its own `type`, so the input `type` is dropped.
+ */
+export function getSwitchProps(field: FieldMetadata<boolean | undefined>) {
+	const { type: ignoredType, ...props } = getInputProps(field, {
+		type: 'checkbox',
+	})
+	return props
 }
 
 export function SwitchConform({ meta }: { meta: FieldMetadata<boolean> }) {

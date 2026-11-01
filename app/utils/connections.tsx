@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 // Social providers are disabled. Keeping exports as no-ops to avoid invasive refactors.
 export const providerNames = [] as const
 export const ProviderNameSchema = z.never()

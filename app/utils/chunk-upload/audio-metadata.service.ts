@@ -1,5 +1,5 @@
 import { parseBuffer } from "music-metadata"; // Import from the library
-import { type StorageProvider } from '#app/routes/test+/types.ts'
+import { type StorageProvider } from './types.ts'
 
 export interface PodcastAudioMetadata {
   durationMs: number; // Duration in milliseconds

@@ -85,7 +85,7 @@ async function ensureBucket() {
 function buildImageKey(pathParts: Array<string>) {
 	const fileId = createId()
 	const timestamp = Date.now()
-	const [fileName] = pathParts.splice(pathParts.length - 1, 1)
+	const [fileName = ''] = pathParts.splice(pathParts.length - 1, 1)
 	const extension = fileName.split('.').pop() || ''
 	const safeBase = fileName.replace(/\.[^/.]+$/, '')
 	return [...pathParts, `${timestamp}-${safeBase}-${fileId}.${extension}`]

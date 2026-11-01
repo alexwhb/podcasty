@@ -236,7 +236,7 @@ function PasskeyLogin({
 		event.preventDefault()
 		try {
 			setPasskeyMessage('Generating Authentication Options')
-			const optionsResponse = await fetch('/_auth/webauthn/authentication')
+			const optionsResponse = await fetch('/webauthn/authentication')
 			const json = await optionsResponse.json()
 			const { options } = AuthenticationOptionsSchema.parse(json)
 
@@ -244,7 +244,7 @@ function PasskeyLogin({
 			const authResponse = await startAuthentication({ optionsJSON: options })
 			setPasskeyMessage('Verifying your passkey')
 
-			const verificationResponse = await fetch('/_auth/webauthn/authentication', {
+			const verificationResponse = await fetch('/webauthn/authentication', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ authResponse, remember, redirectTo }),

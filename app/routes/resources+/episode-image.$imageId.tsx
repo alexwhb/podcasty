@@ -22,7 +22,7 @@ export async function loader({ params }: Route.LoaderArgs) {
 
   return new Response(image.blob, {
     headers: {
-      'Content-Type': image.contentType,
+      'Content-Type': image.contentType ?? 'application/octet-stream',
       'Content-Length': Buffer.byteLength(image.blob).toString(),
       'Content-Disposition': `inline; filename="${params.imageId}"`,
       'Cache-Control': 'public, max-age=31536000, immutable',

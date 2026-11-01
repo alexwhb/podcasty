@@ -71,16 +71,21 @@ export default function PasskeysRoute({
 					onClick={async () => {
 						try {
 							setStatus('pending')
-							const optsRes = await fetch('/_auth/webauthn/registration')
+							const optsRes = await fetch('/webauthn/registration')
 							if (!optsRes.ok) throw new Error('Could not start registration')
-							const { options } = await optsRes.json()
-							const attestation = await startRegistration(options)
-							const verifyRes = await fetch('/_auth/webauthn/registration', {
+							const { options } = (await optsRes.json()) as {
+								options: Parameters<typeof startRegistration>[0]['optionsJSON']
+							}
+							const attestation = await startRegistration({ optionsJSON: options })
+							const verifyRes = await fetch('/webauthn/registration', {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
 								body: JSON.stringify(attestation),
 							})
-							const result = await verifyRes.json()
+							const result = (await verifyRes.json()) as {
+								status?: string
+								error?: string
+							}
 							if (result.status === 'success') {
 								setStatus('success')
 								window.location.reload()

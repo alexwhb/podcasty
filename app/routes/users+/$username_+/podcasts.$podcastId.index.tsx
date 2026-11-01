@@ -19,7 +19,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
 	// Extract query parameters.
 	const searchQuery = url.searchParams.get('search') || ''
-	const sort = url.searchParams.get('sort') === 'asc' ? 'asc' : 'desc'
+	const sort: 'asc' | 'desc' =
+		url.searchParams.get('sort') === 'asc' ? 'asc' : 'desc'
 	const page = parseInt(url.searchParams.get('page') || '1', 10)
 
 	// Fetch the podcast.
@@ -59,6 +60,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 			id: true,
 			title: true,
 			pubDate: true,
+			explicit: true,
 			duration: true,
 			season: true,
 			episode: true,
@@ -274,13 +276,11 @@ export default function PodcastInfo() {
 				onSortToggle={handleSortToggle}
 				onLoadMore={handleLoadMore}
 				onDeleteDialogOpen={handleDeleteDialogOpen}
-				currentPage={currentPage}
 				currentSort={currentSort}
 				isLoading={fetcher.state === 'submitting'}
 				localSearch={localSearch}
 				setLocalSearch={setLocalSearch}
 				clearSearch={clearSearch}
-				currentSearch={searchQuery}
 				isWhisperConfigured={isWhisperConfigured}
 				jobPollPath="/resources/job-status"
 			/>

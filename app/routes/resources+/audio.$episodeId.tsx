@@ -47,7 +47,7 @@ function parseRange(rangeHeader: string | null, size: number) {
 }
 
 function resolveLocalAudioPath(audioUrl: string) {
-	const withoutQuery = audioUrl.split('?')[0]
+	const [withoutQuery = ''] = audioUrl.split('?')
 	if (withoutQuery.startsWith('http')) return null
 	const relativePath = withoutQuery.startsWith('/')
 		? withoutQuery.slice(1)
@@ -116,7 +116,7 @@ async function maybeServeLocalAudio({
 		const body =
 			request.method === 'HEAD'
 				? null
-				: Readable.toWeb(fs.createReadStream(filePath))
+				: (Readable.toWeb(fs.createReadStream(filePath)) as ReadableStream)
 		return new Response(body, {
 			status: 200,
 			headers,
@@ -129,7 +129,9 @@ async function maybeServeLocalAudio({
 	const body =
 		request.method === 'HEAD'
 			? null
-			: Readable.toWeb(fs.createReadStream(filePath, { start, end }))
+			: (Readable.toWeb(
+					fs.createReadStream(filePath, { start, end }),
+				) as ReadableStream)
 
 	return new Response(body, {
 		status: 206,
@@ -295,7 +297,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 	const episodeParam = params.episodeId
 	if (!episodeParam) throw data('Episode id is required', { status: 400 })
 
-	const episodeId = episodeParam.split('.')[0]
+	const [episodeId = ''] = episodeParam.split('.')
 
 	const episode = await prisma.episode.findUnique({
 		where: { id: episodeId },
