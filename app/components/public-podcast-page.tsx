@@ -76,7 +76,7 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 						src={
 							podcast.image
 								? getPodcastImgSrc(podcast.image, podcast.image?.updatedAt)
-								: 'https://placehold.co/200?text=Podcast'
+								: '/img/placeholder.svg'
 						}
 						alt={podcast.title}
 						className="h-28 w-28 rounded-lg object-cover shadow-sm"
@@ -132,7 +132,7 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 										src={
 											episode.image
 												? getEpisodeImgSrc(episode.image)
-												: 'https://placehold.co/120?text=Episode'
+												: '/img/placeholder.svg'
 										}
 										alt={episode.title}
 										className="h-16 w-16 rounded-md object-cover"

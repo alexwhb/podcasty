@@ -91,17 +91,17 @@ export default function ImportPodcast({ actionData }: { actionData?: any }) {
           <div className="space-y-6">
             <div className="flex items-center space-x-2">
               <SwitchConform meta={fields.importImages} />
-              <Label htmlFor="importImages">Import Images</Label>
+              <Label htmlFor={fields.importImages.id}>Import Images</Label>
             </div>
 
             <div className="flex items-center space-x-2">
               <SwitchConform meta={fields.importEpisodes} />
-              <Label htmlFor="importEpisodes">Import Episodes</Label>
+              <Label htmlFor={fields.importEpisodes.id}>Import Episodes</Label>
             </div>
 
             <div className="flex items-center space-x-2">
               <SwitchConform meta={fields.importTranscripts} />
-              <Label htmlFor="importTranscripts">Import Transcripts</Label>
+              <Label htmlFor={fields.importTranscripts.id}>Import Transcripts</Label>
             </div>
           </div>
 

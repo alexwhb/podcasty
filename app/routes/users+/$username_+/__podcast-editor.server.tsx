@@ -6,7 +6,10 @@ import { PodcastEditorSchema } from '#app/routes/users+/$username_+/__podcast-ed
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { requirePodcastOwner } from '#app/utils/podcast-access.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
-import { uploadHandler } from '#app/utils/file-uploads.server.ts'
+import {
+	isMaxFileSizeError,
+	uploadHandler,
+} from '#app/utils/file-uploads.server.ts'
 import { uploadPodcastImage } from '#app/utils/storage.server.ts'
 import { MAX_UPLOAD_SIZE } from './__podcast-editor.tsx'
 import { ensureUniquePodcastSlug } from '#app/utils/slug.server.ts'
@@ -25,7 +28,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		request,
 		{ maxFileSize: MAX_UPLOAD_SIZE },
 		async (file) => uploadHandler(file),
-	)
+	).catch((error: unknown) => {
+		if (isMaxFileSizeError(error)) return null
+		throw error
+	})
+	if (!formData) {
+		return data(
+			{
+				result: {
+					status: 'error' as const,
+					error: {
+						'image.file': [
+							`File size must be less than ${MAX_UPLOAD_SIZE / (1024 * 1024)}MB`,
+						],
+					},
+				},
+			},
+			{ status: 400 },
+		)
+	}
 
 	const actionType = formData.get('_action')
 

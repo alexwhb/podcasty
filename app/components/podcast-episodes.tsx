@@ -116,6 +116,8 @@ export default function PodcastEpisodes({
 	}>({ open: false, episode: null })
 
 	const [draftTranscript, setDraftTranscript] = useState('')
+	// "Add manually" opens an empty editor, which an empty draft alone can't signal.
+	const [isAddingManually, setIsAddingManually] = useState(false)
 	const [generateState, setGenerateState] = useState<
 		'idle' | 'pending' | 'error'
 	>('idle')
@@ -128,6 +130,7 @@ export default function PodcastEpisodes({
 	const openTranscriptModal = (episode: Episode) => {
 		setTranscriptModal({ open: true, episode })
 		setDraftTranscript('')
+		setIsAddingManually(false)
 		if (episode.transcript?.id) {
 			transcriptFetcher.load(`/resources/episode-transcript/${episode.id}`)
 		}
@@ -243,7 +246,7 @@ export default function PodcastEpisodes({
 							src={
 								episode.image
 									? getEpisodeImgSrc(episode.image)
-									: 'https://placehold.co/60'
+									: '/img/placeholder.svg'
 							}
 							alt="Episode Thumbnail"
 							width={60}
@@ -367,7 +370,10 @@ export default function PodcastEpisodes({
 						</DialogTitle>
 					</DialogHeader>
 
-					{transcriptModal.episode && !hasTranscript && draftTranscript === '' ? (
+					{transcriptModal.episode &&
+					!hasTranscript &&
+					draftTranscript === '' &&
+					!isAddingManually ? (
 						<div className="space-y-3">
 							<p className="text-sm text-muted-foreground">
 								No transcript yet. Choose an option:
@@ -431,7 +437,7 @@ export default function PodcastEpisodes({
 								</Button>
 								<Button
 									variant="outline"
-									onClick={() => setDraftTranscript('')}
+									onClick={() => setIsAddingManually(true)}
 								>
 									Add manually
 								</Button>
@@ -454,7 +460,8 @@ export default function PodcastEpisodes({
 						</div>
 					) : null}
 
-					{transcriptModal.episode && (hasTranscript || draftTranscript !== '') ? (
+					{transcriptModal.episode &&
+					(hasTranscript || draftTranscript !== '' || isAddingManually) ? (
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Transcript</label>
 							<Textarea
@@ -501,7 +508,8 @@ export default function PodcastEpisodes({
 							>
 								Close
 							</Button>
-							{transcriptModal.episode && (hasTranscript || draftTranscript) && (
+							{transcriptModal.episode &&
+							(hasTranscript || draftTranscript || isAddingManually) && (
 								<Button
 									onClick={() => {
 										if (!transcriptModal.episode) return

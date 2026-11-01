@@ -171,7 +171,7 @@ export async function loader({
 					episode: true,
 					explicit: true,
 					image: { select: { id: true, objectKey: true, updatedAt: true } },
-					transcript: { select: { id: true } },
+					transcript: { select: { contentType: true } },
 				},
 			},
 		},
@@ -261,7 +261,13 @@ export async function loader({
 					? `<podcast:episode>${episode.episode}</podcast:episode>`
 					: null,
 				`<itunes:image href="${xmlEscape(episodeImage)}" />`,
-				`<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="text/plain" />`,
+				episode.transcript
+					? `<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="${xmlEscape(
+							// The served type, minus parameters like charset.
+							(episode.transcript.contentType ?? '').split(';')[0]?.trim() ||
+								'text/plain',
+						)}" />`
+					: null,
 			]
 				.filter(Boolean)
 				.map((line) => `\t${line}`)

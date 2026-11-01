@@ -135,13 +135,21 @@ export default function PodcastInfo() {
 	} | null>(null)
 
 	// Whenever the loader returns new episodes, update our local list.
-	// When currentPage is 1 (i.e. a new search or sort occurred) we reset;
-	// Otherwise, we append.
+	// When currentPage is 1 (i.e. a new search or sort occurred) we reset.
+	// Otherwise we merge by id: revalidation after publish/unpublish reloads
+	// the same page, which must refresh those rows, not append them again.
 	useEffect(() => {
 		if (currentPage === 1) {
 			setEpisodeList(loaderEpisodes)
 		} else {
-			setEpisodeList((prev) => [...prev, ...loaderEpisodes])
+			setEpisodeList((prev) => {
+				const fresh = new Map(loaderEpisodes.map((e) => [e.id, e]))
+				const seen = new Set(prev.map((e) => e.id))
+				return [
+					...prev.map((e) => fresh.get(e.id) ?? e),
+					...loaderEpisodes.filter((e) => !seen.has(e.id)),
+				]
+			})
 		}
 	}, [loaderEpisodes, currentPage])
 
@@ -192,6 +200,10 @@ export default function PodcastInfo() {
 			formData.set('intent', 'publish')
 			formData.set('episodeId', episodeId)
 			formData.set('isPublished', String(isPublished))
+			// Rows from earlier pages aren't reloaded, so update this one now.
+			setEpisodeList((prev) =>
+				prev.map((e) => (e.id === episodeId ? { ...e, isPublished } : e)),
+			)
 			await fetcher.submit(formData, { method: 'post' })
 		},
 		[fetcher],
@@ -225,7 +237,7 @@ export default function PodcastInfo() {
 										podcast?.image,
 										podcast?.image?.updatedAt,
 									)
-								: 'https://placehold.co/300'
+								: '/img/placeholder.svg'
 						}
 						alt="Podcast Cover"
 						width={250}

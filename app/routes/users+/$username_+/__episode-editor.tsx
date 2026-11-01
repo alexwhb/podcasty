@@ -13,6 +13,7 @@ import { Form, Link, useFetcher, useParams } from 'react-router'
 import { z } from 'zod'
 import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
 import {
+	ErrorList,
 	Field,
 	getSwitchProps,
 	MinimalEditorField,
@@ -98,8 +99,12 @@ export default function EpisodeEditor({
 	)
 
 	const [selectedDate, setSelectedDate] = useState(initialDate)
-	const [episodeNum, setEpisode] = useState<number | null>(null)
-	const [seasonNum, setSeasonNum] = useState<number | null>(null)
+	const [episodeNum, setEpisode] = useState<number | null>(
+		episode?.episode ?? null,
+	)
+	const [seasonNum, setSeasonNum] = useState<number | null>(
+		episode?.season ?? null,
+	)
 	// A scheduled episode is stored as published with a future pubDate.
 	const isScheduled = Boolean(
 		episode?.isPublished &&
@@ -244,6 +249,8 @@ export default function EpisodeEditor({
 									defaultValue={episode.image.id}
 								/>
 							) : null}
+							{/* Client validation blocks the submit, so show why. */}
+							<ErrorList errors={Object.values(fields.image.allErrors).flat()} />
 						</div>
 					</div>
 
@@ -434,6 +441,9 @@ export default function EpisodeEditor({
 							value={seasonNum}
 							errors={fields.season.errors}
 						/>
+						{/* NumberField is controlled and has no name, so submit the values here. */}
+						<input type="hidden" name="episode" value={episodeNum ?? ''} />
+						<input type="hidden" name="season" value={seasonNum ?? ''} />
 					</div>
 
 					<div>
@@ -531,7 +541,7 @@ export default function EpisodeEditor({
 							<DeleteDialogWithInput
 								displayTriggerButton={episode != null}
 								verificationString={episode?.title}
-								placeholder="Enter podcast title"
+								placeholder="Enter episode title"
 							/>
 						</span>
 					</div>
