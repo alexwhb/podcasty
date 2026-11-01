@@ -1,3 +1,4 @@
+import { LocalDateTime } from '#app/components/local-date-time.tsx'
 import { startRegistration } from '@simplewebauthn/browser'
 import { invariantResponse } from '@epic-web/invariant'
 import { type SEOHandle } from '@nasa-gcn/remix-seo'
@@ -131,13 +132,16 @@ export default function PasskeysRoute({
 									</div>
 									<div className="text-muted-foreground">
 										Created:{' '}
-										{new Date(passkey.createdAt).toLocaleString(undefined, {
-											year: 'numeric',
-											month: 'short',
-											day: 'numeric',
-											hour: '2-digit',
-											minute: '2-digit',
-										})}
+										<LocalDateTime
+											value={passkey.createdAt}
+											options={{
+												year: 'numeric',
+												month: 'short',
+												day: 'numeric',
+												hour: '2-digit',
+												minute: '2-digit',
+											}}
+										/>
 									</div>
 									{transports.length ? (
 										<div className="text-muted-foreground">

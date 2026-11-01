@@ -105,7 +105,9 @@ export default function PodcastEditor({
 			category: podcast?.category || '',
 			type: podcast?.type || 'episodic',
 			explicit: podcast?.explicit || false,
-			locked: podcast?.locked || false,
+			// New podcasts start locked (podcast:locked yes), so other hosts can't
+			// import the feed and take it over.
+			locked: podcast?.locked ?? true,
 			baseUrl: podcast?.baseUrl,
 			image: podcast?.image,
 		},

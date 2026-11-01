@@ -167,7 +167,18 @@ export default function EpisodeEditor({
 	})
 
 	const handleDateSelect = useCallback((date: Date | undefined) => {
-		if (date) setSelectedDate(date)
+		if (!date) return
+		// The calendar returns midnight; keep the time that was already chosen.
+		setSelectedDate((previous) => {
+			const next = new Date(date)
+			next.setHours(
+				previous.getHours(),
+				previous.getMinutes(),
+				previous.getSeconds(),
+				0,
+			)
+			return next
+		})
 	}, [])
 
 	// Use the uploader hook

@@ -2,6 +2,7 @@ import { ArrowUpDown, Loader2Icon, PlusIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useFetcher } from 'react-router'
 import EpisodeStatusIndicator from '#app/components/episode-status-indicator.tsx'
+import { LocalDateTime } from '#app/components/local-date-time.tsx'
 import { Button } from '#app/components/ui/button'
 import {
 	DropdownMenu,
@@ -58,17 +59,13 @@ interface PodcastEpisodesProps {
 	jobPollPath?: string
 }
 
-function formatPubDate(value: string | Date): string {
-	const date = new Date(value)
-	const options: Intl.DateTimeFormatOptions = {
-		month: '2-digit',
-		day: '2-digit',
-		year: 'numeric',
-		hour: 'numeric',
-		minute: '2-digit',
-		hour12: true,
-	}
-	return date.toLocaleString('en-US', options)
+const PUB_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+	month: '2-digit',
+	day: '2-digit',
+	year: 'numeric',
+	hour: 'numeric',
+	minute: '2-digit',
+	hour12: true,
 }
 
 function formatDuration(seconds: number): string {
@@ -279,7 +276,7 @@ export default function PodcastEpisodes({
 							)}
 						</div>
 						<div className="text-sm text-gray-600 dark:text-gray-400">
-							{formatPubDate(episode.pubDate)}
+							<LocalDateTime value={episode.pubDate} options={PUB_DATE_FORMAT} />
 							<span className="mx-2">|</span>
 							{formatDuration(episode.duration)}
 						</div>
