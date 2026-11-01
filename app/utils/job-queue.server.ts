@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { prisma } from '#app/utils/db.server.ts'
+import { startUploadCleanup } from '#app/utils/storage-cleanup.server.ts'
 import { transcribeEpisodeAudio } from '#app/utils/whisper.server.ts'
 import {
 	ImportJobPayloadSchema,
@@ -26,6 +27,8 @@ export function startJobWorker() {
 	if (workerStarted) return
 	workerStarted = true
 	void workLoop()
+	// Not a queued job, but the same long-running process is the place for it.
+	startUploadCleanup()
 }
 
 async function workLoop() {

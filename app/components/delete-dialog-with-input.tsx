@@ -28,8 +28,8 @@ export default function DeleteDialogWithInput({
 		<AlertDialog>
 			{displayTriggerButton && (
 				<AlertDialogTrigger asChild>
-					<Button variant="destructive">
-						<Trash />
+					<Button variant="destructive" aria-label="Delete">
+						<Trash aria-hidden />
 					</Button>
 				</AlertDialogTrigger>
 			)}

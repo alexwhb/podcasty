@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { PodcastEditorSchema } from '#app/routes/users+/$username_+/__podcast-editor.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { requirePodcastOwner } from '#app/utils/podcast-access.server.ts'
+import { getPodcastFiles, removeStoredFiles } from '#app/utils/storage-cleanup.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import {
 	isMaxFileSizeError,
@@ -64,9 +65,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			return data([{ error: 'Podcast name does not match.' }], { status: 400 })
 		}
 
-		await prisma.$transaction([
-			prisma.podcast.delete({ where: { id: params.podcastId } }),
-		]);
+		const files = await getPodcastFiles(podcast.id)
+		await prisma.podcast.delete({ where: { id: podcast.id } })
+		await removeStoredFiles(files)
 
 		return redirect(`/users/${params.username}/podcasts/`)
 	}
@@ -129,7 +130,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	const existingPodcast = podcastId
 		? await prisma.podcast.findUnique({
 				where: { id: podcastId },
-				select: { image: { select: { id: true } }, slug: true },
+				select: { image: { select: { id: true, objectKey: true } }, slug: true },
 			})
 		: null
 	const slug =
@@ -210,6 +211,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			})
 		}
 	}
+
+	// The old cover is unreferenced now if it was removed or replaced.
+	await removeStoredFiles({ objectKeys: [existingPodcast?.image?.objectKey] })
 
 	return redirect(`/users/${params.username}/podcasts/${updatedPodcast.id}`)
 }

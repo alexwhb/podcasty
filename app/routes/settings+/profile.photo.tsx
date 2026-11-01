@@ -12,6 +12,7 @@ import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
+import { removeStoredFiles } from '#app/utils/storage-cleanup.server.ts'
 import {
 	getUserImgSrc,
 	useDoubleCheck,
@@ -114,9 +115,14 @@ export async function action({ request }: Route.ActionArgs) {
 	}
 
 	const { image, intent } = submission.value
+	const previousImage = await prisma.userImage.findUnique({
+		where: { userId },
+		select: { objectKey: true },
+	})
 
 	if (intent === 'delete') {
 		await prisma.userImage.deleteMany({ where: { userId } })
+		await removeStoredFiles({ objectKeys: [previousImage?.objectKey] })
 		return redirect('/settings/profile')
 	}
 
@@ -127,6 +133,7 @@ export async function action({ request }: Route.ActionArgs) {
 			data: { image: { create: image } },
 		})
 	})
+	await removeStoredFiles({ objectKeys: [previousImage?.objectKey] })
 
 	return redirect('/settings/profile')
 }

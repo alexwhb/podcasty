@@ -8,6 +8,7 @@ import {
 } from '#app/utils/podcast-access.server.ts'
 import { describeUploadedAudio } from '#app/utils/audio-upload.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
+import { getEpisodeFiles, removeStoredFiles } from '#app/utils/storage-cleanup.server.ts'
 import { uploadEpisodeImage } from '#app/utils/storage.server.ts'
 
 export async function action({
@@ -36,7 +37,9 @@ export async function action({
 			return data([{ error: 'Podcast name does not match.' }], { status: 400 })
 		}
 
-		await prisma.episode.delete({ where: { id: params.episodeId } })
+		const files = await getEpisodeFiles(episdoe.id)
+		await prisma.episode.delete({ where: { id: episdoe.id } })
+		await removeStoredFiles(files)
 
 		return redirect(`/users/${params.username}/podcasts/`)
 	}
@@ -70,6 +73,11 @@ export async function action({
 		image,
 		audioFile,
 	} = submission.value
+
+	// What the episode stored before this save, to clean up anything replaced.
+	const previousFiles = params.episodeId
+		? await getEpisodeFiles(params.episodeId)
+		: null
 
 	// Set by the chunk uploader; size, type and duration come from the file.
 	const audio = audioFile
@@ -143,6 +151,9 @@ export async function action({
 			},
 		})
 	}
+
+	// Files still referenced (an unchanged image or audio) are kept.
+	if (previousFiles) await removeStoredFiles(previousFiles)
 
 	return redirect(`/users/${params.username}/podcasts/${params.podcastId}`);
 }
