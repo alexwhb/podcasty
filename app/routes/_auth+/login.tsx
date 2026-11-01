@@ -11,7 +11,11 @@ import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
-import { login, requireAnonymous } from '#app/utils/auth.server.ts'
+import {
+	isSignupAllowed,
+	login,
+	requireAnonymous,
+} from '#app/utils/auth.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 import { getErrorMessage, useIsPending } from '#app/utils/misc.tsx'
 import { PasswordSchema, UsernameSchema } from '#app/utils/user-validation.ts'
@@ -35,7 +39,7 @@ const AuthenticationOptionsSchema = z.object({
 
 export async function loader({ request }: Route.LoaderArgs) {
 	await requireAnonymous(request)
-	return {}
+	return { allowSignup: await isSignupAllowed() }
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -78,7 +82,10 @@ export async function action({ request }: Route.ActionArgs) {
 	})
 }
 
-export default function LoginPage({ actionData }: Route.ComponentProps) {
+export default function LoginPage({
+	loaderData,
+	actionData,
+}: Route.ComponentProps) {
 	const isPending = useIsPending()
 	const [searchParams] = useSearchParams()
 	const redirectTo = searchParams.get('redirectTo')
@@ -175,18 +182,20 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
 								remember={fields.remember.value === 'on'}
 							/>
 						</div>
-						<div className="flex items-center justify-center gap-2 pt-6">
-							<span className="text-muted-foreground">New here?</span>
-							<Link
-								to={
-									redirectTo
-										? `/signup?redirectTo=${encodeURIComponent(redirectTo)}`
-										: '/signup'
-								}
-							>
-								Create an account
-							</Link>
-						</div>
+						{loaderData.allowSignup ? (
+							<div className="flex items-center justify-center gap-2 pt-6">
+								<span className="text-muted-foreground">New here?</span>
+								<Link
+									to={
+										redirectTo
+											? `/signup?redirectTo=${encodeURIComponent(redirectTo)}`
+											: '/signup'
+									}
+								>
+									Create an account
+								</Link>
+							</div>
+						) : null}
 					</div>
 				</div>
 			</div>
