@@ -2,7 +2,11 @@ import { parseWithZod } from '@conform-to/zod'
 import { type ActionFunctionArgs, data, redirect } from 'react-router'
 import { v4 as uuidv4 } from 'uuid'
 import { EpisodeEditorSchema } from '#app/routes/users+/$username_+/__episode-editor.tsx'
-import { requireUserId } from '#app/utils/auth.server.ts'
+import {
+	requireEpisodeOwner,
+	requirePodcastOwner,
+} from '#app/utils/podcast-access.server.ts'
+import { describeUploadedAudio } from '#app/utils/audio-upload.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { uploadEpisodeImage } from '#app/utils/storage.server.ts'
 
@@ -11,7 +15,10 @@ export async function action({
 	params,
 }: ActionFunctionArgs) {
 	if (params.podcastId == null) throw new Error('podcastId must be defined')
-	const userId = await requireUserId(request)
+	// The new-episode route has no episodeId; every other path edits an existing one.
+	const userId = params.episodeId
+		? await requireEpisodeOwner(request, params.podcastId, params.episodeId)
+		: await requirePodcastOwner(request, params.podcastId)
 	const formData = await request.formData()
 
 	const actionType = formData.get('_action')
@@ -61,39 +68,51 @@ export async function action({
 		publishMode,
 		episodeType,
 		image,
+		audioFile,
 	} = submission.value
 
-	const shouldPublishNow =
-		isPublished ||
-		(publishMode === 'schedule' && new Date(pubDate) <= new Date())
+	// Set by the chunk uploader; size, type and duration come from the file.
+	const audio = audioFile
+		? await describeUploadedAudio(audioFile, params.podcastId)
+		: null
+
+	// Scheduled episodes are stored as published and stay out of public views
+	// until pubDate. Drafts are unpublished and never go live on their own.
+	const shouldPublish = isPublished || publishMode === 'schedule'
+	// "Publish now" means now, even if a future date is still selected.
+	const effectivePubDate =
+		isPublished && new Date(pubDate) > new Date()
+			? new Date().toISOString()
+			: pubDate
 	const episodeRecord = await prisma.episode.upsert({
 		where: { id: params.episodeId ?? 'new_episode' },
 		create: {
 			title,
 			description,
-			pubDate, // backend expects a Date object
+			pubDate: effectivePubDate,
 			explicit,
 			guid: uuidv4(),
-			duration: 0, // todo update me
+			duration: audio?.duration ?? 0,
 			episodeType,
 			link: '', // todo
-			audioUrl: '', // todo
-			audioSize: 0, // todo
-			audioType: '', // todo
+			audioUrl: audio?.audioUrl ?? '',
+			audioSize: audio?.audioSize ?? 0,
+			audioType: audio?.audioType ?? '',
 			season,
 			episode,
-			isPublished: shouldPublishNow,
+			isPublished: shouldPublish,
 			podcastId: params.podcastId,
 		},
 		update: {
 			title,
 			description,
-			pubDate,
+			pubDate: effectivePubDate,
 			explicit,
 			season,
 			episode,
-			isPublished: shouldPublishNow,
+			isPublished: shouldPublish,
 			episodeType,
+			...(audio ?? {}),
 		},
 	})
 

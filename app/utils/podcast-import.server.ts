@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { decode } from 'he'
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { parseStringPromise } from 'xml2js'
 import fetch from 'node-fetch'
 import { parseBuffer } from 'music-metadata'
@@ -43,16 +42,25 @@ async function downloadAndConvertToBlob(url: string) {
 			}
 		})()
 
-		return { buffer, contentType, fileName }
+		// URLs like /resources/images?objectKey=... have no extension in the
+		// path, which ended up as the stored key's extension (".images").
+		const extensions: Record<string, string> = {
+			'image/jpeg': 'jpg',
+			'image/png': 'png',
+			'image/webp': 'webp',
+		}
+		const extension = extensions[contentType.split(';')[0]?.trim() ?? '']
+		const namedFile =
+			extension && !/\.[A-Za-z0-9]{2,5}$/.test(fileName)
+				? `${fileName}.${extension}`
+				: fileName
+
+		return { buffer, contentType, fileName: namedFile }
 	} catch (error) {
 		console.error('Error downloading file:', error)
 		return null
 	}
 }
-
-type StorageConfig =
-	| { kind: 's3'; client: S3Client; bucket: string; publicBaseUrl?: string }
-	| { kind: 'fs'; baseDir: string; publicBaseUrl?: string }
 
 function extractCategories(channel: any): Array<string> {
 	const raw = channel['itunes:category']
@@ -66,50 +74,35 @@ function extractCategories(channel: any): Array<string> {
 		.map((c: string) => c.trim())
 }
 
-function createStorageConfig(): StorageConfig {
-	if (process.env.USE_S3 === 'true') {
-		if (
-			!process.env.S3_BUCKET ||
-			!process.env.AWS_ACCESS_KEY_ID ||
-			!process.env.AWS_SECRET_ACCESS_KEY
-		) {
-			throw new Error(
-				'S3 storage selected but S3_BUCKET / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY not set',
-			)
-		}
-		return {
-			kind: 's3',
-			bucket: process.env.S3_BUCKET,
-			publicBaseUrl: process.env.S3_PUBLIC_URL,
-			client: new S3Client({
-				region: process.env.S3_REGION || 'us-east-1',
-				endpoint: process.env.S3_ENDPOINT,
-				credentials: {
-					accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-					secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-				},
-				forcePathStyle: Boolean(process.env.S3_ENDPOINT),
-			}),
-		}
-	}
+// Imported audio is stored on local disk, like uploaded audio, because the
+// audio route serves /uploads/audio/... paths. (S3 copies were stored as
+// s3:// URLs that nothing could serve.)
+const AUDIO_DIR = path.join(process.cwd(), 'uploads', 'audio')
 
-	return {
-		kind: 'fs',
-		baseDir: path.join(process.cwd(), 'uploads', 'audio'),
-		publicBaseUrl: '/uploads/audio',
-	}
+function parseExplicit(value: unknown) {
+	return value === 'true' || value === 'yes'
+}
+
+function parseOptionalInt(value: unknown) {
+	const parsed = Number.parseInt(String(value ?? ''), 10)
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+// itunes:duration is either seconds or [[HH:]MM:]SS.
+function parseDuration(value: unknown) {
+	const parts = String(value ?? '').trim().split(':').map(Number)
+	if (!parts.length || parts.some((part) => !Number.isFinite(part))) return 0
+	return Math.round(parts.reduce((total, part) => total * 60 + part, 0))
 }
 
 async function storeAudioFile({
 	podcastId,
 	episodeId,
 	audioUrl,
-	storage,
 }: {
 	podcastId: string
 	episodeId: string
 	audioUrl: string
-	storage: StorageConfig
 }) {
 	try {
 		const res = await fetch(audioUrl)
@@ -127,29 +120,14 @@ async function storeAudioFile({
 				return 'audio.mp3'
 			}
 		})()
-		const storageKey = `${podcastId}/${fileNameFromUrl}`
+		// The name comes from a remote URL, so keep it to safe characters.
+		const safeName = fileNameFromUrl.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^\.+/, '')
+		const storageKey = `${podcastId}/${safeName || 'audio.mp3'}`
 
-		let publicUrl = audioUrl
-		if (storage.kind === 's3') {
-			await storage.client.send(
-				new PutObjectCommand({
-					Bucket: storage.bucket,
-					Key: storageKey,
-					Body: buffer,
-					ContentType: contentType,
-				}),
-			)
-			publicUrl = storage.publicBaseUrl
-				? `${storage.publicBaseUrl.replace(/\/$/, '')}/${storageKey}`
-				: `s3://${storage.bucket}/${storageKey}`
-		} else {
-			const target = path.join(storage.baseDir, storageKey)
-			await fs.mkdir(path.dirname(target), { recursive: true })
-			await fs.writeFile(target, buffer)
-			publicUrl = storage.publicBaseUrl
-				? `${storage.publicBaseUrl.replace(/\/$/, '')}/${storageKey}`
-				: target
-		}
+		const target = path.join(AUDIO_DIR, storageKey)
+		await fs.mkdir(path.dirname(target), { recursive: true })
+		await fs.writeFile(target, buffer)
+		const publicUrl = `/uploads/audio/${storageKey}`
 
 		// Try to read duration/format
 		let duration = 0
@@ -206,7 +184,7 @@ export async function importPodcastFromRss({
 				? new Date(channel.lastBuildDate)
 				: new Date(),
 			author: channel['itunes:author'] || '',
-			explicit: channel['itunes:explicit'] === 'true',
+			explicit: parseExplicit(channel['itunes:explicit']),
 			type: channel['itunes:type'] || 'episodic',
 			category: categories.length ? categories.join(',') : 'Uncategorized',
 			guid: channel['podcast:guid'] || '',
@@ -239,7 +217,6 @@ export async function importPodcastFromRss({
 	}
 
 	if (importEpisodes) {
-		const storageConfig = createStorageConfig()
 		const episodes = Array.isArray(channel.item) ? channel.item : [channel.item]
 		for (const episode of episodes) {
 			const enclosureUrl =
@@ -288,10 +265,11 @@ export async function importPodcastFromRss({
 					audioType: enclosureType,
 					guid: episode.guid?._ || episode.guid || '',
 					pubDate: episode.pubDate ? new Date(episode.pubDate) : new Date(),
-					duration: parseInt(episode['itunes:duration'] || '0', 10),
+					duration: parseDuration(episode['itunes:duration']),
 					episodeType: episode['itunes:episodeType'] || 'full',
-					episode: parseInt(episode['itunes:episode'] || '0', 10),
-					explicit: episode['itunes:explicit'] === 'true',
+					episode: parseOptionalInt(episode['itunes:episode']),
+					season: parseOptionalInt(episode['itunes:season']),
+					explicit: parseExplicit(episode['itunes:explicit']),
 					podcastId: podcast.id,
 					transcript: transcriptBlob,
 				},
@@ -322,7 +300,6 @@ export async function importPodcastFromRss({
 					podcastId: podcast.id,
 					episodeId: createdEpisode.id,
 					audioUrl: enclosureUrl,
-					storage: storageConfig,
 				})
 			}
 		}

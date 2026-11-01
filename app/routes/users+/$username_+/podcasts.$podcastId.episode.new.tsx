@@ -1,11 +1,11 @@
-import { requireUserId } from '#app/utils/auth.server.ts'
+import { requirePodcastOwner } from '#app/utils/podcast-access.server.ts'
 import { type Route } from './+types/podcasts.$podcastId.episode.new'
 import EpisodeEditor from './__episode-editor'
 export { action } from './__episode-editor.server.tsx'
 
 
-export async function loader({  request }: Route.LoaderArgs) {
-	await requireUserId(request)
+export async function loader({ params, request }: Route.LoaderArgs) {
+	await requirePodcastOwner(request, params.podcastId)
 
 	return {  }
 }

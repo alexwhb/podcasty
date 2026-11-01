@@ -9,13 +9,15 @@ function buildWeakEtag(stats: fs.Stats) {
 	return `W/"${stats.mtimeMs.toString(16)}-${stats.size.toString(16)}"`
 }
 
+// nginx sets X-Real-IP to the connecting address and appends it to
+// X-Forwarded-For. Earlier X-Forwarded-For entries come from the client and
+// can be spoofed, so only the last one is used.
 function getClientIp(request: Request) {
 	const headers = request.headers
-	const forwarded = headers.get('x-forwarded-for') || headers.get('cf-connecting-ip')
-	if (forwarded) {
-		return forwarded.split(',')[0]?.trim() || null
-	}
-	return headers.get('x-real-ip') || null
+	const realIp = headers.get('x-real-ip')
+	if (realIp) return realIp.trim()
+	const forwarded = headers.get('x-forwarded-for')
+	return forwarded?.split(',').pop()?.trim() || null
 }
 
 function truncate(value: string | null, max = 512) {
@@ -37,13 +39,23 @@ function buildAudioUrl(audioUrl: string, request: Request, baseUrl?: string | nu
 function parseRange(rangeHeader: string | null, size: number) {
 	if (!rangeHeader) return null
 	if (!rangeHeader.startsWith('bytes=')) return null
-	const [startStr, endStr] = rangeHeader.replace('bytes=', '').split('-')
+	// A single integer range only. Malformed ("1.5", "0x10") and multi-range
+	// headers are ignored, as RFC 9110 allows, and get the full file.
+	const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim())
+	if (!match) return null
+	const [, startStr = '', endStr = ''] = match
+	if (!startStr && !endStr) return null
+	if (!startStr) {
+		// Suffix range: the last N bytes.
+		const length = Number(endStr)
+		if (length === 0) return 'invalid'
+		return { start: Math.max(size - length, 0), end: size - 1 }
+	}
 	const start = Number(startStr)
-	if (Number.isNaN(start) || start < 0 || start >= size) return 'invalid'
-	const end = endStr ? Number(endStr) : size - 1
-	const normalizedEnd = Number.isNaN(end) || end >= size ? size - 1 : end
-	if (normalizedEnd < start) return 'invalid'
-	return { start, end: normalizedEnd }
+	if (start >= size) return 'invalid'
+	const end = endStr ? Math.min(Number(endStr), size - 1) : size - 1
+	if (end < start) return 'invalid'
+	return { start, end }
 }
 
 function resolveLocalAudioPath(audioUrl: string) {
@@ -323,35 +335,45 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 	const range = truncate(request.headers.get('range'))
 	const ip = truncate(getClientIp(request))
 
-	// Fire-and-forget logging; we don't block the redirect on logging failures.
-	prisma.episodeDownload
-		.create({
-			data: {
-				episodeId,
-				podcastId: episode.podcastId,
-				userAgent,
-				referer,
-				range,
-				ip,
-			},
-		})
-		.catch((error) => {
-			console.error('Failed to record episode download', error)
-		})
+	// Only count requests that actually send audio: not HEAD, 304 or 416.
+	const recordDownload = (response: Response) => {
+		if (request.method !== 'GET') return
+		if (response.status !== 200 && response.status !== 206) return
+		// Fire-and-forget; a logging failure shouldn't fail the request.
+		prisma.episodeDownload
+			.create({
+				data: {
+					episodeId,
+					podcastId: episode.podcastId,
+					userAgent,
+					referer,
+					range,
+					ip,
+				},
+			})
+			.catch((error) => {
+				console.error('Failed to record episode download', error)
+			})
+	}
 
 	const localResponse = await maybeServeLocalAudio({
 		audioUrl: episode.audioUrl,
 		request,
 		audioType: episode.audioType,
 	})
-	if (localResponse) return localResponse
+	if (localResponse) {
+		recordDownload(localResponse)
+		return localResponse
+	}
 
 	try {
-		return await proxyRemoteAudio({
+		const response = await proxyRemoteAudio({
 			targetUrl,
 			request,
 			audioType: episode.audioType,
 		})
+		recordDownload(response)
+		return response
 	} catch (error) {
 		console.error('Failed to proxy remote audio', error)
 		return redirect(targetUrl, { status: 302 })

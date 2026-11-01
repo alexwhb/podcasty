@@ -431,6 +431,7 @@ export function SwitchConform({ meta }: { meta: FieldMetadata<boolean> }) {
 			/>
 			<Switch
 				ref={switchRef}
+				id={meta.id}
 				checked={control.value === 'on'}
 				onCheckedChange={(checked) => {
 					control.change(checked ? 'on' : '');

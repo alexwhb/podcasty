@@ -14,3 +14,12 @@ export async function uploadHandler(file: FileUpload): Promise<File> {
 	})
 	return fileInstance
 }
+
+/**
+ * parseFormData throws this (from @mjackson/multipart-parser) when a file is
+ * over maxFileSize. Checked by name so callers don't import a transitive
+ * dependency.
+ */
+export function isMaxFileSizeError(error: unknown) {
+	return error instanceof Error && error.name === 'MaxFileSizeExceededError'
+}

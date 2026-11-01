@@ -34,10 +34,11 @@ const viteDevServer = IS_PROD
 const app = express()
 
 const getHost = (req: { get: (key: string) => string | undefined }) =>
-	req.get('X-Forwarded-Host') ?? req.get('host') ?? ''
+	req.get('host') ?? ''
 
-// fly is our proxy
-app.set('trust proxy', true)
+// One reverse proxy (nginx) sits in front of the app. Trusting exactly one hop
+// makes req.ip the address nginx saw, not a client-supplied X-Forwarded-For.
+app.set('trust proxy', 1)
 
 // ensure HTTPS only (X-Forwarded-Proto comes from Fly)
 app.use((req, res, next) => {
@@ -132,12 +133,9 @@ const rateLimitDefault = {
 	standardHeaders: true,
 	legacyHeaders: false,
 	validate: { trustProxy: false },
-	// Malicious users can spoof their IP address which means we should not default
-	// to trusting req.ip when hosted on Fly.io. However, users cannot spoof Fly-Client-Ip.
-	// When sitting behind a CDN such as cloudflare, replace fly-client-ip with the CDN
-	// specific header such as cf-connecting-ip
+	// Fly-Client-Ip can only be trusted on Fly; anywhere else a client can set it.
 	keyGenerator: (req: express.Request) => {
-		return req.get('fly-client-ip') ?? `${req.ip}`
+		return (process.env.FLY_APP_NAME && req.get('fly-client-ip')) || `${req.ip}`
 	},
 }
 

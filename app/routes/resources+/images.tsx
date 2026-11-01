@@ -10,6 +10,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 	invariantResponse(objectKey, 'objectKey query parameter is required', {
 		status: 400,
 	})
+	// Every image the app stores is under users/. Anything else in the bucket
+	// isn't meant to be public.
+	invariantResponse(
+		objectKey.startsWith('users/') && !objectKey.split('/').includes('..'),
+		'Not found',
+		{ status: 404 },
+	)
 
 	const { url: signedUrl, headers } = getSignedGetRequestInfo(objectKey)
 	const response = await fetch(signedUrl, { headers })

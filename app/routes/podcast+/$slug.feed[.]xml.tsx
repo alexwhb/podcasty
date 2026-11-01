@@ -3,6 +3,7 @@ import { prisma } from '#app/utils/db.server.ts'
 import {
 	getDomainUrl,
 	getEpisodeImgSrc,
+	getNumericTimestamp,
 	getPodcastImgSrc,
 } from '#app/utils/misc.tsx'
 import {
@@ -31,6 +32,15 @@ function imageUrl(
 	origin: string,
 	kind: 'podcast' | 'episode' = 'podcast',
 ) {
+	// Podcast apps want artwork URLs ending in .jpg/.png, so use the image
+	// routes' .jpg variants rather than /resources/images?objectKey=...
+	if (image.id) {
+		const path =
+			kind === 'podcast'
+				? `/resources/podcast-image/${image.id}.jpg?t=${getNumericTimestamp(image.updatedAt)}`
+				: `/resources/episode-image/${image.id}.jpg`
+		return absolutize(path, origin)
+	}
 	const path =
 		kind === 'podcast'
 			? getPodcastImgSrc(image, image.updatedAt)
@@ -60,18 +70,6 @@ function extractExtension(path: string) {
 	const lastDot = lastSegment.lastIndexOf('.')
 	if (lastDot <= 0 || lastDot === lastSegment.length - 1) return null
 	return lastSegment.slice(lastDot + 1)
-}
-
-function defaultPodcastImage(origin: string) {
-	return absolutize('/podcasty.svg', origin)
-}
-
-function ensureJpegExtension(url: string | null | undefined) {
-	if (!url) return url
-	const [path = '', query] = url.split('?')
-	if (path.includes('.')) return url
-	const withExt = `${path}.jpg`
-	return query ? `${withExt}?${query}` : withExt
 }
 
 function getExtensionFromUrl(audioUrl: string | null | undefined) {
@@ -153,7 +151,12 @@ export async function loader({
 			baseUrl: true,
 			image: { select: { id: true, objectKey: true, updatedAt: true } },
 			episodes: {
-				where: { isPublished: true },
+				where: {
+					isPublished: true,
+					pubDate: { lte: new Date() },
+					// No audio means no valid enclosure, which podcast apps reject.
+					audioUrl: { not: '' },
+				},
 				orderBy: { pubDate: 'desc' },
 				select: {
 					id: true,
@@ -171,7 +174,7 @@ export async function loader({
 					episode: true,
 					explicit: true,
 					image: { select: { id: true, objectKey: true, updatedAt: true } },
-					transcript: { select: { id: true } },
+					transcript: { select: { contentType: true } },
 				},
 			},
 		},
@@ -180,14 +183,11 @@ export async function loader({
 	if (!podcast) throw data('Podcast not found', { status: 404 })
 
 	const channelLink = podcast.baseUrl || podcast.link || ''
-	const podcastImage =
-		podcast.image && podcast.image.updatedAt
-			? imageUrl(podcast.image, podcast.baseUrl || origin)
-			: defaultPodcastImage(origin)
-	// Some validators expect a .jpg extension when serving JPEG images; add one for internal image routes.
-	const podcastImageForFeed = podcastImage?.includes('/resources/podcast-image/')
-		? ensureJpegExtension(podcastImage)
-		: podcastImage
+	// No fallback artwork: the app's default is an SVG, which itunes:image
+	// doesn't allow, so the tag is left out instead.
+	const podcastImageForFeed = podcast.image
+		? imageUrl(podcast.image, podcast.baseUrl || origin)
+		: null
 
 	const categories = (
 		podcast.category && podcast.category !== 'Uncategorized'
@@ -232,12 +232,9 @@ export async function loader({
 		.map((episode) => {
 			const desc = cdata(episode.description)
 			const enclosureUrl = buildEnclosureUrl(episode, podcast.baseUrl, origin)
-			const episodeImageRaw = episode.image
+			const episodeImage = episode.image
 				? imageUrl(episode.image, podcast.baseUrl || origin, 'episode')
-				: podcastImageForFeed || defaultPodcastImage(origin)
-			const episodeImage = episodeImageRaw?.includes('/resources/episode-image/')
-				? ensureJpegExtension(episodeImageRaw)
-				: episodeImageRaw
+				: podcastImageForFeed
 			const index = podcast.episodes.findIndex((e) => e.id === episode.id)
 			const pageNumber =
 				index >= 0 ? Math.floor(index / PUBLIC_EPISODE_PAGE_SIZE) + 1 : 1
@@ -260,8 +257,16 @@ export async function loader({
 				episode.episode != null
 					? `<podcast:episode>${episode.episode}</podcast:episode>`
 					: null,
-				`<itunes:image href="${xmlEscape(episodeImage)}" />`,
-				`<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="text/plain" />`,
+				episodeImage
+					? `<itunes:image href="${xmlEscape(episodeImage)}" />`
+					: null,
+				episode.transcript
+					? `<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="${xmlEscape(
+							// The served type, minus parameters like charset.
+							(episode.transcript.contentType ?? '').split(';')[0]?.trim() ||
+								'text/plain',
+						)}" />`
+					: null,
 			]
 				.filter(Boolean)
 				.map((line) => `\t${line}`)

@@ -11,11 +11,8 @@ const supportedAudioTypes = [
 const supportedExtensions = ['.mp3', '.wav', '.aac', '.m4a']
 
 export const UploadChunkSchema = z.object({
-	chunk: z.instanceof(Blob).refine((blob) => {
-		console.log('Validating blob:', { type: blob.type, size: blob.size })
-		// Accept any blob if the fileName extension is valid
-		return true
-	}, 'File must be a podcast-supported audio format (MP3, WAV, AAC, M4A)'),
+	// Any blob; the file name's extension decides the format.
+	chunk: z.instanceof(Blob),
 	uploadId: z.string().min(1, 'Upload ID is required'),
 	chunkIndex: z.coerce
 		.number()

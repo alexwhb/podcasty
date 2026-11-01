@@ -5,6 +5,7 @@ import PodcastEpisodes from '#app/components/podcast-episodes' // Import the Pod
 import { Spacer } from '#app/components/spacer.tsx'
 import { Button } from '#app/components/ui/button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
+import { requireEpisodeOwner } from '#app/utils/podcast-access.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getPodcastImgSrc } from '#app/utils/misc.tsx'
 import { getWhisperConfig } from '#app/utils/whisper.server.ts'
@@ -39,16 +40,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 	if (!podcast) {
 		throw new Response('Podcast not found', { status: 404 })
 	}
-
-	// Auto-publish any episodes whose scheduled publish date has passed.
-	await prisma.episode.updateMany({
-		where: {
-			podcastId: params.podcastId,
-			isPublished: false,
-			pubDate: { lte: new Date() },
-		},
-		data: { isPublished: true },
-	})
 
 	// Fetch the episodes for the podcast.
 	const episodes = await prisma.episode.findMany({
@@ -95,12 +86,15 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
-	// const userId = await requireUserId(request)
 	const formData = await request.formData()
 	const intent = formData.get('intent')
 
-	 if (intent === 'publish') {
-		const episodeId = formData.get('episodeId') as string
+	if (intent === 'publish') {
+		const episodeId = formData.get('episodeId')
+		if (typeof episodeId !== 'string') {
+			throw new Response('episodeId is required', { status: 400 })
+		}
+		await requireEpisodeOwner(request, params.podcastId, episodeId)
 		const isPublished = formData.get('isPublished') === 'true'
 		await prisma.episode.update({
 			where: { id: episodeId },
@@ -141,13 +135,21 @@ export default function PodcastInfo() {
 	} | null>(null)
 
 	// Whenever the loader returns new episodes, update our local list.
-	// When currentPage is 1 (i.e. a new search or sort occurred) we reset;
-	// Otherwise, we append.
+	// When currentPage is 1 (i.e. a new search or sort occurred) we reset.
+	// Otherwise we merge by id: revalidation after publish/unpublish reloads
+	// the same page, which must refresh those rows, not append them again.
 	useEffect(() => {
 		if (currentPage === 1) {
 			setEpisodeList(loaderEpisodes)
 		} else {
-			setEpisodeList((prev) => [...prev, ...loaderEpisodes])
+			setEpisodeList((prev) => {
+				const fresh = new Map(loaderEpisodes.map((e) => [e.id, e]))
+				const seen = new Set(prev.map((e) => e.id))
+				return [
+					...prev.map((e) => fresh.get(e.id) ?? e),
+					...loaderEpisodes.filter((e) => !seen.has(e.id)),
+				]
+			})
 		}
 	}, [loaderEpisodes, currentPage])
 
@@ -198,6 +200,10 @@ export default function PodcastInfo() {
 			formData.set('intent', 'publish')
 			formData.set('episodeId', episodeId)
 			formData.set('isPublished', String(isPublished))
+			// Rows from earlier pages aren't reloaded, so update this one now.
+			setEpisodeList((prev) =>
+				prev.map((e) => (e.id === episodeId ? { ...e, isPublished } : e)),
+			)
 			await fetcher.submit(formData, { method: 'post' })
 		},
 		[fetcher],
@@ -231,7 +237,7 @@ export default function PodcastInfo() {
 										podcast?.image,
 										podcast?.image?.updatedAt,
 									)
-								: 'https://placehold.co/300'
+								: '/img/placeholder.svg'
 						}
 						alt="Podcast Cover"
 						width={250}
