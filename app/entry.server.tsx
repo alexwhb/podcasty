@@ -76,7 +76,13 @@ export default async function handleRequest(...args: DocRequestArgs) {
 						contentSecurityPolicy: {
 							reportOnly: false,
 							directives: {
+								// @nichtsam/helmet only reads directives inside these groups.
 								fetch: {
+									'default-src': ["'self'"],
+									'object-src': ["'none'"],
+									// sonner and input-otp inject <style> elements without a
+									// nonce, so styles can't be nonce-locked like scripts.
+									'style-src': ["'self'", "'unsafe-inline'"],
 									'connect-src': [
 										MODE === 'development' ? 'ws:' : undefined,
 										process.env.SENTRY_DSN ? '*.sentry.io' : undefined,

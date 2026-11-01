@@ -49,7 +49,8 @@ export async function action({ params, request }: { params: { episodeId: string 
 	await prisma.transcript.upsert({
 		where: { episodeId },
 		create: { episodeId, contentType: 'text/plain; charset=utf-8', blob: Buffer.from(text, 'utf8') },
-		update: { contentType: 'text/plain; charset=utf-8', blob: Buffer.from(text, 'utf8') },
+		// Keep the stored type: an edited SRT transcript is still SRT.
+		update: { blob: Buffer.from(text, 'utf8') },
 	})
 
 	return data({ success: true })

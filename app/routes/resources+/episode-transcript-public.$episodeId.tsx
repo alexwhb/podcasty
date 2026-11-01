@@ -11,7 +11,7 @@ export async function loader({ params, request }: { params: { episodeId?: string
 	}
 
 	const episode = await prisma.episode.findUnique({
-		where: { id: episodeId, isPublished: true },
+		where: { id: episodeId, isPublished: true, pubDate: { lte: new Date() } },
 		select: { id: true },
 	})
 	if (!episode) throw data('Not found', { status: 404 })

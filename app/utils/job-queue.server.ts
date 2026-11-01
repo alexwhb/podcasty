@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { prisma } from '#app/utils/db.server.ts'
+import { startUploadCleanup } from '#app/utils/storage-cleanup.server.ts'
 import { transcribeEpisodeAudio } from '#app/utils/whisper.server.ts'
 import {
 	ImportJobPayloadSchema,
@@ -26,6 +27,8 @@ export function startJobWorker() {
 	if (workerStarted) return
 	workerStarted = true
 	void workLoop()
+	// Not a queued job, but the same long-running process is the place for it.
+	startUploadCleanup()
 }
 
 async function workLoop() {
@@ -71,10 +74,7 @@ async function workLoop() {
 					})
 				}
 			} catch (handlerError) {
-				const message =
-					handlerError instanceof Error
-						? handlerError.message
-						: 'Job handler failed'
+				const message = getJobErrorMessage(handlerError, 'Job handler failed')
 				console.error(`Job ${job.id} (${job.type}) failed:`, handlerError)
 				await markFailed(job.id, message)
 			}
@@ -84,6 +84,17 @@ async function workLoop() {
 			await sleep(2000)
 		}
 	}
+}
+
+// Handlers share code with routes, which throw react-router `data()` values
+// rather than Errors, e.g. data('Unable to download audio', { status: 502 }).
+function getJobErrorMessage(error: unknown, fallback: string) {
+	if (error instanceof Error) return error.message
+	if (error && typeof error === 'object' && 'data' in error) {
+		const { data } = error
+		if (typeof data === 'string' && data) return data
+	}
+	return fallback
 }
 
 async function getNextJob() {
@@ -121,7 +132,7 @@ async function handleTranscriptionJob(job: NonNullable<Awaited<ReturnType<typeof
 			},
 		})
 	} catch (error) {
-		await markFailed(job.id, error instanceof Error ? error.message : 'Transcription failed')
+		await markFailed(job.id, getJobErrorMessage(error, 'Transcription failed'))
 		throw error
 	}
 }

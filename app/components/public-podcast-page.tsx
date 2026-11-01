@@ -2,16 +2,15 @@ import { Link, useSearchParams } from 'react-router'
 import { useState } from 'react'
 import { Calendar, Clock, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { LocalDateTime } from '#app/components/local-date-time.tsx'
 import { Button } from '#app/components/ui/button.tsx'
 import { getEpisodeImgSrc, getPodcastImgSrc } from '#app/utils/misc.tsx'
 import { type PublicPodcastData } from '#app/utils/podcast-public.server.ts'
 
-function formatPubDate(date: string | Date) {
-	return new Date(date).toLocaleDateString(undefined, {
-		month: 'short',
-		day: 'numeric',
-		year: 'numeric',
-	})
+const PUB_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+	month: 'short',
+	day: 'numeric',
+	year: 'numeric',
 }
 
 function formatDuration(seconds: number) {
@@ -76,7 +75,7 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 						src={
 							podcast.image
 								? getPodcastImgSrc(podcast.image, podcast.image?.updatedAt)
-								: 'https://placehold.co/200?text=Podcast'
+								: '/img/placeholder.svg'
 						}
 						alt={podcast.title}
 						className="h-28 w-28 rounded-lg object-cover shadow-sm"
@@ -132,7 +131,7 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 										src={
 											episode.image
 												? getEpisodeImgSrc(episode.image)
-												: 'https://placehold.co/120?text=Episode'
+												: '/img/placeholder.svg'
 										}
 										alt={episode.title}
 										className="h-16 w-16 rounded-md object-cover"
@@ -159,7 +158,7 @@ export function PublicPodcastPage({ data }: { data: PublicPodcastData }) {
 									<div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
 										<span className="inline-flex items-center gap-1">
 											<Calendar className="h-4 w-4" />
-											{formatPubDate(episode.pubDate)}
+											<LocalDateTime value={episode.pubDate} options={PUB_DATE_FORMAT} />
 										</span>
 										<span className="inline-flex items-center gap-1">
 											<Clock className="h-4 w-4" />

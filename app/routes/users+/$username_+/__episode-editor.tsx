@@ -13,6 +13,7 @@ import { Form, Link, useFetcher, useParams } from 'react-router'
 import { z } from 'zod'
 import DeleteDialogWithInput from '#app/components/delete-dialog-with-input.tsx'
 import {
+	ErrorList,
 	Field,
 	getSwitchProps,
 	MinimalEditorField,
@@ -48,7 +49,11 @@ export const EpisodeEditorSchema = z.object({
 	season: z.number().optional(),
 	episode: z.number().optional(),
 	explicit: z.boolean().default(false),
-	isPublished: z.coerce.boolean().default(false),
+	// From a hidden input; z.coerce.boolean() would turn "false" into true.
+	isPublished: z
+		.enum(['true', 'false'])
+		.default('false')
+		.transform((value) => value === 'true'),
 	publishMode: z.enum(['draft', 'schedule']).default('draft'),
 	episodeType: z.enum(['full', 'trailer', 'bonus']),
 	audioFile: z.string().optional(), // Added for uploaded file
@@ -94,14 +99,20 @@ export default function EpisodeEditor({
 	)
 
 	const [selectedDate, setSelectedDate] = useState(initialDate)
-	const [episodeNum, setEpisode] = useState<number | null>(null)
-	const [seasonNum, setSeasonNum] = useState<number | null>(null)
-	const initialIsPublished = episode?.isPublished ?? false
-	const initialPublishMode = useMemo(() => {
-		if (initialIsPublished) return 'draft'
-		if (episode?.pubDate && new Date(episode.pubDate) > new Date()) return 'schedule'
-		return 'draft'
-	}, [episode?.pubDate, initialIsPublished])
+	const [episodeNum, setEpisode] = useState<number | null>(
+		episode?.episode ?? null,
+	)
+	const [seasonNum, setSeasonNum] = useState<number | null>(
+		episode?.season ?? null,
+	)
+	// A scheduled episode is stored as published with a future pubDate.
+	const isScheduled = Boolean(
+		episode?.isPublished &&
+			episode.pubDate &&
+			new Date(episode.pubDate) > new Date(),
+	)
+	const initialIsPublished = Boolean(episode?.isPublished) && !isScheduled
+	const initialPublishMode = isScheduled ? 'schedule' : 'draft'
 	const [publishMode, setPublishMode] = useState<'draft' | 'schedule'>(initialPublishMode)
 	const [isPublished, setIsPublished] = useState(initialIsPublished)
 	const [uploadedFile, setUploadedFile] = useState<string | null>(null)
@@ -135,7 +146,7 @@ export default function EpisodeEditor({
 			explicit: episode?.explicit || false,
 			season: episode?.season,
 			episode: episode?.episode,
-			isPublished: initialIsPublished,
+			isPublished: String(initialIsPublished),
 			publishMode: initialPublishMode,
 			episodeType: episode?.episodeType || 'full',
 			image: episode?.image,
@@ -156,7 +167,18 @@ export default function EpisodeEditor({
 	})
 
 	const handleDateSelect = useCallback((date: Date | undefined) => {
-		if (date) setSelectedDate(date)
+		if (!date) return
+		// The calendar returns midnight; keep the time that was already chosen.
+		setSelectedDate((previous) => {
+			const next = new Date(date)
+			next.setHours(
+				previous.getHours(),
+				previous.getMinutes(),
+				previous.getSeconds(),
+				0,
+			)
+			return next
+		})
 	}, [])
 
 	// Use the uploader hook
@@ -164,7 +186,6 @@ export default function EpisodeEditor({
 	const uploaderProps = useChunkUploader({
 		username: params.username!,
 		podcastId: params.podcastId!,
-		episodeId: params.episodeId!
 	})
 
 	const transcriptFetcher = useFetcher<{ transcript?: string }>()
@@ -238,6 +259,8 @@ export default function EpisodeEditor({
 									defaultValue={episode.image.id}
 								/>
 							) : null}
+							{/* Client validation blocks the submit, so show why. */}
+							<ErrorList errors={Object.values(fields.image.allErrors).flat()} />
 						</div>
 					</div>
 
@@ -293,7 +316,7 @@ export default function EpisodeEditor({
 											/>
 											{uploadedFile && (
 												<p className="text-sm text-muted-foreground">
-													Audio file uploaded: {uploadedFile}
+													Audio file uploaded: {uploadedFile.split('/').pop()}
 												</p>
 											)}
 											<div className="flex items-center gap-2">
@@ -326,7 +349,7 @@ export default function EpisodeEditor({
 								/>
 								{uploadedFile && (
 									<p className="text-sm text-gray-600">
-										Audio file uploaded: {uploadedFile}
+										Audio file uploaded: {uploadedFile.split('/').pop()}
 									</p>
 								)}
 							</div>
@@ -428,6 +451,9 @@ export default function EpisodeEditor({
 							value={seasonNum}
 							errors={fields.season.errors}
 						/>
+						{/* NumberField is controlled and has no name, so submit the values here. */}
+						<input type="hidden" name="episode" value={episodeNum ?? ''} />
+						<input type="hidden" name="season" value={seasonNum ?? ''} />
 					</div>
 
 					<div>
@@ -505,7 +531,7 @@ export default function EpisodeEditor({
 								</Select>
 								<input type="hidden" name="publishMode" value={publishMode} />
 								<p className="text-xs text-muted-foreground">
-									Use “Schedule” to auto-publish at the chosen date and time.
+									A scheduled episode goes live in the feed at the chosen date and time.
 								</p>
 							</div>
 						) : (
@@ -517,15 +543,15 @@ export default function EpisodeEditor({
 
 					<div className="flex gap-4 pb-10">
 						<Button type="submit">Save</Button>
-						<Link to={`../`}>
-							<Button variant="outline">Cancel</Button>
-						</Link>
+						<Button variant="outline" asChild>
+							<Link to="../">Cancel</Link>
+						</Button>
 
 						<span className="ml-auto">
 							<DeleteDialogWithInput
 								displayTriggerButton={episode != null}
 								verificationString={episode?.title}
-								placeholder="Enter podcast title"
+								placeholder="Enter episode title"
 							/>
 						</span>
 					</div>

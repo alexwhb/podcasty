@@ -2,6 +2,7 @@ import { Outlet } from 'react-router'
 import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
+import { getEpisodeFiles, removeStoredFiles } from '#app/utils/storage-cleanup.server.ts'
 import { type Route } from '../../../../.react-router/types/app/routes/users+/$username_+/+types/podcasts.$podcastId.ts'
 
 export async function action({ params, request }: Route.ActionArgs) {
@@ -24,9 +25,16 @@ export async function action({ params, request }: Route.ActionArgs) {
 			throw new Response('Podcast episode not found', { status: 404 })
 		}
 
-		await prisma.episode.delete({
-			where: { id: episodeId, podcastId: params.podcastId },
+		const episode = await prisma.episode.findFirst({
+			where: { id: episodeId, podcastId: podcast.id },
+			select: { id: true },
 		})
+		if (!episode) {
+			throw new Response('Podcast episode not found', { status: 404 })
+		}
+		const files = await getEpisodeFiles(episode.id)
+		await prisma.episode.delete({ where: { id: episode.id } })
+		await removeStoredFiles(files)
 
 		return null
 	}

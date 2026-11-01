@@ -36,7 +36,8 @@ export async function sendEmail({
 	const from =
 		process.env.SMTP_FROM ||
 		process.env.RESEND_FROM ||
-		'hello@epicstack.dev'
+		process.env.SMTP_USER ||
+		'noreply@podcasty.local'
 
 	const email = {
 		from,
@@ -132,7 +133,8 @@ function getSmtpConfig(): SmtpConfig | null {
 	const from =
 		process.env.SMTP_FROM ||
 		process.env.RESEND_FROM ||
-		'hello@epicstack.dev'
+		process.env.SMTP_USER ||
+		'noreply@podcasty.local'
 	const secure = process.env.SMTP_SECURE !== 'false'
 
 	if (host && user && pass) {

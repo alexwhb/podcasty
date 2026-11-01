@@ -28,8 +28,8 @@ export default function DeleteDialogWithInput({
 		<AlertDialog>
 			{displayTriggerButton && (
 				<AlertDialogTrigger asChild>
-					<Button variant="destructive">
-						<Trash />
+					<Button variant="destructive" aria-label="Delete">
+						<Trash aria-hidden />
 					</Button>
 				</AlertDialogTrigger>
 			)}
@@ -41,7 +41,9 @@ export default function DeleteDialogWithInput({
 						<strong>{verificationString}</strong> to confirm deletion.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				<form method="post">
+				{/* Portalled in the DOM, but React still bubbles submit to the editor
+				    form around this dialog, whose handler then throws. */}
+				<form method="post" onSubmit={(event) => event.stopPropagation()}>
 					<input type="hidden" name="_action" value="delete" />
 					<div className="m-4">
 						<Input

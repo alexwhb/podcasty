@@ -1,7 +1,7 @@
 import { getFormProps, getInputProps, useForm } from '@conform-to/react'
 import { getZodConstraint, parseWithZod } from '@conform-to/zod'
 import { invariantResponse } from '@epic-web/invariant'
-import { type FileUpload, parseFormData } from '@mjackson/form-data-parser'
+import { parseFormData } from '@mjackson/form-data-parser'
 import { type SEOHandle } from '@nasa-gcn/remix-seo'
 import { useState } from 'react'
 import { data, redirect, Form, useNavigation } from 'react-router'
@@ -12,11 +12,16 @@ import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
+import { removeStoredFiles } from '#app/utils/storage-cleanup.server.ts'
 import {
 	getUserImgSrc,
 	useDoubleCheck,
 	useIsPending,
 } from '#app/utils/misc.tsx'
+import {
+	isMaxFileSizeError,
+	uploadHandler,
+} from '#app/utils/file-uploads.server.ts'
 import { uploadProfileImage } from '#app/utils/storage.server.ts'
 import { type Route } from './+types/profile.photo.ts'
 import { type BreadcrumbHandle } from './profile.tsx'
@@ -66,11 +71,27 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
 	const userId = await requireUserId(request)
 
+	// FileUpload isn't a Blob, so returning it as-is stored "[object Object]" in
+	// the form data and every upload failed validation.
 	const formData = await parseFormData(
 		request,
 		{ maxFileSize: MAX_SIZE },
-		async (file: FileUpload) => file,
-	)
+		uploadHandler,
+	).catch((error: unknown) => {
+		if (isMaxFileSizeError(error)) return null
+		throw error
+	})
+	if (!formData) {
+		return data(
+			{
+				result: {
+					status: 'error' as const,
+					error: { photoFile: ['Image size must be less than 3MB'] },
+				},
+			},
+			{ status: 400 },
+		)
+	}
 	const submission = await parseWithZod(formData, {
 		schema: PhotoFormSchema.transform(async (data) => {
 			if (data.intent === 'delete') return { intent: 'delete' }
@@ -94,9 +115,14 @@ export async function action({ request }: Route.ActionArgs) {
 	}
 
 	const { image, intent } = submission.value
+	const previousImage = await prisma.userImage.findUnique({
+		where: { userId },
+		select: { objectKey: true },
+	})
 
 	if (intent === 'delete') {
 		await prisma.userImage.deleteMany({ where: { userId } })
+		await removeStoredFiles({ objectKeys: [previousImage?.objectKey] })
 		return redirect('/settings/profile')
 	}
 
@@ -107,6 +133,7 @@ export async function action({ request }: Route.ActionArgs) {
 			data: { image: { create: image } },
 		})
 	})
+	await removeStoredFiles({ objectKeys: [previousImage?.objectKey] })
 
 	return redirect('/settings/profile')
 }

@@ -120,10 +120,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getDomainUrl(request: Request) {
-	const host =
-		request.headers.get('X-Forwarded-Host') ??
-		request.headers.get('host') ??
-		new URL(request.url).host
+	// Not X-Forwarded-Host: the nginx proxy doesn't set it, so it would come
+	// straight from the client and control links in emails and feeds.
+	const host = request.headers.get('host') ?? new URL(request.url).host
 	const protocol = request.headers.get('X-Forwarded-Proto') ?? 'http'
 	return `${protocol}://${host}`
 }

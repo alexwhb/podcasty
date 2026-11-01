@@ -1,8 +1,10 @@
+import { createHash } from 'node:crypto'
 import { data } from 'react-router'
 import { prisma } from '#app/utils/db.server.ts'
 import {
 	getDomainUrl,
 	getEpisodeImgSrc,
+	getNumericTimestamp,
 	getPodcastImgSrc,
 } from '#app/utils/misc.tsx'
 import {
@@ -31,6 +33,15 @@ function imageUrl(
 	origin: string,
 	kind: 'podcast' | 'episode' = 'podcast',
 ) {
+	// Podcast apps want artwork URLs ending in .jpg/.png, so use the image
+	// routes' .jpg variants rather than /resources/images?objectKey=...
+	if (image.id) {
+		const path =
+			kind === 'podcast'
+				? `/resources/podcast-image/${image.id}.jpg?t=${getNumericTimestamp(image.updatedAt)}`
+				: `/resources/episode-image/${image.id}.jpg`
+		return absolutize(path, origin)
+	}
 	const path =
 		kind === 'podcast'
 			? getPodcastImgSrc(image, image.updatedAt)
@@ -60,18 +71,6 @@ function extractExtension(path: string) {
 	const lastDot = lastSegment.lastIndexOf('.')
 	if (lastDot <= 0 || lastDot === lastSegment.length - 1) return null
 	return lastSegment.slice(lastDot + 1)
-}
-
-function defaultPodcastImage(origin: string) {
-	return absolutize('/podcasty.svg', origin)
-}
-
-function ensureJpegExtension(url: string | null | undefined) {
-	if (!url) return url
-	const [path = '', query] = url.split('?')
-	if (path.includes('.')) return url
-	const withExt = `${path}.jpg`
-	return query ? `${withExt}?${query}` : withExt
 }
 
 function getExtensionFromUrl(audioUrl: string | null | undefined) {
@@ -117,6 +116,47 @@ function buildEnclosureUrl(
 	return absolutize(`/resources/audio/${episode.id}.${extension}`, baseUrl || origin)
 }
 
+// When each feed's content last changed, so Last-Modified moves forward on
+// any change, including deleted or unpublished episodes, which leave no
+// updatedAt behind. Kept in memory: after a restart the first request reports
+// "now", which costs podcast apps one full download.
+const feedVersions = new Map<string, { etag: string; lastModified: Date }>()
+
+function getFeedVersion(key: string, body: string) {
+	const hash = createHash('sha256').update(body).digest('base64url').slice(0, 27)
+	// Weak, because the response may be compressed on the way out.
+	const etag = `W/"${hash}"`
+	const known = feedVersions.get(key)
+	if (known?.etag === etag) return known
+	// HTTP dates have one-second precision.
+	const version = {
+		etag,
+		lastModified: new Date(Math.floor(Date.now() / 1000) * 1000),
+	}
+	if (feedVersions.size > 100) feedVersions.clear()
+	feedVersions.set(key, version)
+	return version
+}
+
+function isNotModified(
+	request: Request,
+	{ etag, lastModified }: { etag: string; lastModified: Date },
+) {
+	// If-None-Match wins over If-Modified-Since when both are sent.
+	const ifNoneMatch = request.headers.get('if-none-match')
+	if (ifNoneMatch) {
+		const opaque = (tag: string) => tag.trim().replace(/^W\//, '')
+		return (
+			ifNoneMatch.trim() === '*' ||
+			ifNoneMatch.split(',').some((tag) => opaque(tag) === opaque(etag))
+		)
+	}
+	const ifModifiedSince = request.headers.get('if-modified-since')
+	if (!ifModifiedSince) return false
+	const since = Date.parse(ifModifiedSince)
+	return !Number.isNaN(since) && lastModified.getTime() <= since
+}
+
 export async function loader({
 	request,
 	params,
@@ -153,7 +193,12 @@ export async function loader({
 			baseUrl: true,
 			image: { select: { id: true, objectKey: true, updatedAt: true } },
 			episodes: {
-				where: { isPublished: true },
+				where: {
+					isPublished: true,
+					pubDate: { lte: new Date() },
+					// No audio means no valid enclosure, which podcast apps reject.
+					audioUrl: { not: '' },
+				},
 				orderBy: { pubDate: 'desc' },
 				select: {
 					id: true,
@@ -171,7 +216,7 @@ export async function loader({
 					episode: true,
 					explicit: true,
 					image: { select: { id: true, objectKey: true, updatedAt: true } },
-					transcript: { select: { id: true } },
+					transcript: { select: { contentType: true } },
 				},
 			},
 		},
@@ -180,14 +225,11 @@ export async function loader({
 	if (!podcast) throw data('Podcast not found', { status: 404 })
 
 	const channelLink = podcast.baseUrl || podcast.link || ''
-	const podcastImage =
-		podcast.image && podcast.image.updatedAt
-			? imageUrl(podcast.image, podcast.baseUrl || origin)
-			: defaultPodcastImage(origin)
-	// Some validators expect a .jpg extension when serving JPEG images; add one for internal image routes.
-	const podcastImageForFeed = podcastImage?.includes('/resources/podcast-image/')
-		? ensureJpegExtension(podcastImage)
-		: podcastImage
+	// No fallback artwork: the app's default is an SVG, which itunes:image
+	// doesn't allow, so the tag is left out instead.
+	const podcastImageForFeed = podcast.image
+		? imageUrl(podcast.image, podcast.baseUrl || origin)
+		: null
 
 	const categories = (
 		podcast.category && podcast.category !== 'Uncategorized'
@@ -232,12 +274,9 @@ export async function loader({
 		.map((episode) => {
 			const desc = cdata(episode.description)
 			const enclosureUrl = buildEnclosureUrl(episode, podcast.baseUrl, origin)
-			const episodeImageRaw = episode.image
+			const episodeImage = episode.image
 				? imageUrl(episode.image, podcast.baseUrl || origin, 'episode')
-				: podcastImageForFeed || defaultPodcastImage(origin)
-			const episodeImage = episodeImageRaw?.includes('/resources/episode-image/')
-				? ensureJpegExtension(episodeImageRaw)
-				: episodeImageRaw
+				: podcastImageForFeed
 			const index = podcast.episodes.findIndex((e) => e.id === episode.id)
 			const pageNumber =
 				index >= 0 ? Math.floor(index / PUBLIC_EPISODE_PAGE_SIZE) + 1 : 1
@@ -260,8 +299,16 @@ export async function loader({
 				episode.episode != null
 					? `<podcast:episode>${episode.episode}</podcast:episode>`
 					: null,
-				`<itunes:image href="${xmlEscape(episodeImage)}" />`,
-				`<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="text/plain" />`,
+				episodeImage
+					? `<itunes:image href="${xmlEscape(episodeImage)}" />`
+					: null,
+				episode.transcript
+					? `<podcast:transcript url="${xmlEscape(transcriptUrl)}" type="${xmlEscape(
+							// The served type, minus parameters like charset.
+							(episode.transcript.contentType ?? '').split(';')[0]?.trim() ||
+								'text/plain',
+						)}" />`
+					: null,
 			]
 				.filter(Boolean)
 				.map((line) => `\t${line}`)
@@ -282,10 +329,23 @@ ${optionalFields ? `${optionalFields}\n` : ''}\t<itunes:explicit>${episode.expli
 
 	const rss = `${header}${items}\n</channel>\n</rss>`
 
+	// Podcast apps poll feeds often; let them skip unchanged ones.
+	const version = getFeedVersion(`${podcast.id}|${origin}`, rss)
+	const cacheHeaders = {
+		ETag: version.etag,
+		'Last-Modified': version.lastModified.toUTCString(),
+		// Short, so scheduled episodes appear soon after their pubDate.
+		'Cache-Control': 'public, max-age=300',
+	}
+	if (isNotModified(request, version)) {
+		return new Response(null, { status: 304, headers: cacheHeaders })
+	}
+
 	return new Response(rss, {
 		status: 200,
 		headers: {
 			'Content-Type': 'application/rss+xml; charset=utf-8',
+			...cacheHeaders,
 		},
 	})
 }

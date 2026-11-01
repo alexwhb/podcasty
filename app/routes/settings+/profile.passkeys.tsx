@@ -1,3 +1,4 @@
+import { LocalDateTime } from '#app/components/local-date-time.tsx'
 import { startRegistration } from '@simplewebauthn/browser'
 import { invariantResponse } from '@epic-web/invariant'
 import { type SEOHandle } from '@nasa-gcn/remix-seo'
@@ -43,7 +44,8 @@ export async function action({ request }: Route.ActionArgs) {
 	invariantResponse(typeof id === 'string', 'Passkey id required', {
 		status: 400,
 	})
-	await prisma.passkey.delete({ where: { id } })
+	const { count } = await prisma.passkey.deleteMany({ where: { id, userId } })
+	invariantResponse(count === 1, 'Passkey not found', { status: 404 })
 	return data({ status: 'deleted' } as const, { status: 200 })
 }
 
@@ -130,13 +132,16 @@ export default function PasskeysRoute({
 									</div>
 									<div className="text-muted-foreground">
 										Created:{' '}
-										{new Date(passkey.createdAt).toLocaleString(undefined, {
-											year: 'numeric',
-											month: 'short',
-											day: 'numeric',
-											hour: '2-digit',
-											minute: '2-digit',
-										})}
+										<LocalDateTime
+											value={passkey.createdAt}
+											options={{
+												year: 'numeric',
+												month: 'short',
+												day: 'numeric',
+												hour: '2-digit',
+												minute: '2-digit',
+											}}
+										/>
 									</div>
 									{transports.length ? (
 										<div className="text-muted-foreground">

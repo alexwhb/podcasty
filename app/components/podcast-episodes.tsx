@@ -2,6 +2,7 @@ import { ArrowUpDown, Loader2Icon, PlusIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useFetcher } from 'react-router'
 import EpisodeStatusIndicator from '#app/components/episode-status-indicator.tsx'
+import { LocalDateTime } from '#app/components/local-date-time.tsx'
 import { Button } from '#app/components/ui/button'
 import {
 	DropdownMenu,
@@ -58,17 +59,13 @@ interface PodcastEpisodesProps {
 	jobPollPath?: string
 }
 
-function formatPubDate(value: string | Date): string {
-	const date = new Date(value)
-	const options: Intl.DateTimeFormatOptions = {
-		month: '2-digit',
-		day: '2-digit',
-		year: 'numeric',
-		hour: 'numeric',
-		minute: '2-digit',
-		hour12: true,
-	}
-	return date.toLocaleString('en-US', options)
+const PUB_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+	month: '2-digit',
+	day: '2-digit',
+	year: 'numeric',
+	hour: 'numeric',
+	minute: '2-digit',
+	hour12: true,
 }
 
 function formatDuration(seconds: number): string {
@@ -116,6 +113,8 @@ export default function PodcastEpisodes({
 	}>({ open: false, episode: null })
 
 	const [draftTranscript, setDraftTranscript] = useState('')
+	// "Add manually" opens an empty editor, which an empty draft alone can't signal.
+	const [isAddingManually, setIsAddingManually] = useState(false)
 	const [generateState, setGenerateState] = useState<
 		'idle' | 'pending' | 'error'
 	>('idle')
@@ -128,6 +127,7 @@ export default function PodcastEpisodes({
 	const openTranscriptModal = (episode: Episode) => {
 		setTranscriptModal({ open: true, episode })
 		setDraftTranscript('')
+		setIsAddingManually(false)
 		if (episode.transcript?.id) {
 			transcriptFetcher.load(`/resources/episode-transcript/${episode.id}`)
 		}
@@ -243,7 +243,7 @@ export default function PodcastEpisodes({
 							src={
 								episode.image
 									? getEpisodeImgSrc(episode.image)
-									: 'https://placehold.co/60'
+									: '/img/placeholder.svg'
 							}
 							alt="Episode Thumbnail"
 							width={60}
@@ -276,12 +276,14 @@ export default function PodcastEpisodes({
 							)}
 						</div>
 						<div className="text-sm text-gray-600 dark:text-gray-400">
-							{formatPubDate(episode.pubDate)}
+							<LocalDateTime value={episode.pubDate} options={PUB_DATE_FORMAT} />
 							<span className="mx-2">|</span>
 							{formatDuration(episode.duration)}
 						</div>
 					</div>
-					{episode.isPublished ? (
+					{episode.isPublished && new Date(episode.pubDate) > new Date() ? (
+						<EpisodeStatusIndicator variant="amber" title="Scheduled" />
+					) : episode.isPublished ? (
 						<EpisodeStatusIndicator variant="green" title="Live Now" />
 					) : (
 						<EpisodeStatusIndicator variant="red" title="Draft" />
@@ -365,7 +367,10 @@ export default function PodcastEpisodes({
 						</DialogTitle>
 					</DialogHeader>
 
-					{transcriptModal.episode && !hasTranscript && draftTranscript === '' ? (
+					{transcriptModal.episode &&
+					!hasTranscript &&
+					draftTranscript === '' &&
+					!isAddingManually ? (
 						<div className="space-y-3">
 							<p className="text-sm text-muted-foreground">
 								No transcript yet. Choose an option:
@@ -429,7 +434,7 @@ export default function PodcastEpisodes({
 								</Button>
 								<Button
 									variant="outline"
-									onClick={() => setDraftTranscript('')}
+									onClick={() => setIsAddingManually(true)}
 								>
 									Add manually
 								</Button>
@@ -452,7 +457,8 @@ export default function PodcastEpisodes({
 						</div>
 					) : null}
 
-					{transcriptModal.episode && (hasTranscript || draftTranscript !== '') ? (
+					{transcriptModal.episode &&
+					(hasTranscript || draftTranscript !== '' || isAddingManually) ? (
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Transcript</label>
 							<Textarea
@@ -499,7 +505,8 @@ export default function PodcastEpisodes({
 							>
 								Close
 							</Button>
-							{transcriptModal.episode && (hasTranscript || draftTranscript) && (
+							{transcriptModal.episode &&
+							(hasTranscript || draftTranscript || isAddingManually) && (
 								<Button
 									onClick={() => {
 										if (!transcriptModal.episode) return

@@ -42,7 +42,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
 	const resetPasswordUsername = await requireResetPasswordUsername(request)
 	const formData = await request.formData()
-	const submission = parseWithZod(formData, {
+	const submission = await parseWithZod(formData, {
+		async: true,
 		schema: ResetPasswordSchema.superRefine(async ({ password }, ctx) => {
 			if (!password) return
 			const { checkIsCommonPassword } = await import('#app/utils/auth.server.ts')

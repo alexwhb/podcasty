@@ -1,3 +1,4 @@
+import { LocalDateTime } from '#app/components/local-date-time.tsx'
 import { Prisma } from '@prisma/client'
 import { data, Form, useLoaderData, useSearchParams } from 'react-router'
 import { requireUserId } from '#app/utils/auth.server.ts'
@@ -176,7 +177,7 @@ export default function JobStatusList({
 								<td className="px-4 py-2 text-sm capitalize">{job.status}</td>
 								<td className="px-4 py-2 text-sm">{job.attempts}</td>
 								<td className="px-4 py-2 text-sm">
-									{new Date(job.updatedAt).toLocaleString()}
+									<LocalDateTime value={job.updatedAt} />
 								</td>
 								<td className="px-4 py-2 text-sm text-destructive">
 									{job.lastError || ''}

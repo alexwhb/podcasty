@@ -3,6 +3,7 @@ import { type FileUpload } from '@mjackson/form-data-parser'
 import { createId } from '@paralleldrive/cuid2'
 import {
 	CreateBucketCommand,
+	DeleteObjectsCommand,
 	HeadBucketCommand,
 	S3Client,
 } from '@aws-sdk/client-s3'
@@ -79,6 +80,25 @@ async function ensureBucket() {
 	} catch (error) {
 		console.error('Failed to ensure bucket exists', error)
 		throw error
+	}
+}
+
+export async function deleteFromStorage(keys: Array<string>) {
+	if (!keys.length || !s3Client || !STORAGE_BUCKET) return
+	// DeleteObjects takes up to 1000 keys per request.
+	for (let i = 0; i < keys.length; i += 1000) {
+		const result = await s3Client.send(
+			new DeleteObjectsCommand({
+				Bucket: STORAGE_BUCKET,
+				Delete: {
+					Objects: keys.slice(i, i + 1000).map((Key) => ({ Key })),
+					Quiet: true,
+				},
+			}),
+		)
+		if (result.Errors?.length) {
+			console.error('Some storage objects could not be deleted', result.Errors)
+		}
 	}
 }
 

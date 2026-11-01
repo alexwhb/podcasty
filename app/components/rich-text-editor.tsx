@@ -1,3 +1,4 @@
+import { useHydrated } from 'remix-utils/use-hydrated'
 import {
 	FontBoldIcon,
 	FontItalicIcon,
@@ -225,6 +226,7 @@ const RichTextEditor = ({
 	}, [initialHTML])
 
 	const [value, setValue] = useState<Descendant[]>(initialValue)
+	const isHydrated = useHydrated()
 	// Wrap the editor with `withHistory` for undo/redo support
 	const editor = useMemo(() => withHistory(withReact(createEditor())), [])
 
@@ -285,7 +287,9 @@ const RichTextEditor = ({
 		}
 	}
 
-	if (typeof window === 'undefined') {
+	// Slate can't render on the server. Rendering nothing until hydration on
+	// the client too keeps the first client render matching the server.
+	if (!isHydrated) {
 		return null
 	}
 
