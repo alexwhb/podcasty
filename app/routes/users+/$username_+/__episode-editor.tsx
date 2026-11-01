@@ -175,7 +175,6 @@ export default function EpisodeEditor({
 	const uploaderProps = useChunkUploader({
 		username: params.username!,
 		podcastId: params.podcastId!,
-		episodeId: params.episodeId!
 	})
 
 	const transcriptFetcher = useFetcher<{ transcript?: string }>()
@@ -306,7 +305,7 @@ export default function EpisodeEditor({
 											/>
 											{uploadedFile && (
 												<p className="text-sm text-muted-foreground">
-													Audio file uploaded: {uploadedFile}
+													Audio file uploaded: {uploadedFile.split('/').pop()}
 												</p>
 											)}
 											<div className="flex items-center gap-2">
@@ -339,7 +338,7 @@ export default function EpisodeEditor({
 								/>
 								{uploadedFile && (
 									<p className="text-sm text-gray-600">
-										Audio file uploaded: {uploadedFile}
+										Audio file uploaded: {uploadedFile.split('/').pop()}
 									</p>
 								)}
 							</div>

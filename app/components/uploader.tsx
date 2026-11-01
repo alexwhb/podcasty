@@ -1,24 +1,19 @@
 import { type ChangeEvent, useEffect } from 'react'
-import { Form } from 'react-router';
 import { Button } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
 import { Progress } from '#app/components/ui/progress';
 import { Label } from '#app/components/ui/label.tsx'
 
-type ResponseData = {
-  status: string;
-  file?: string;
-  metadata?: any;
-};
+import { type UploadComplete } from '#app/hooks/use-chunk-uploader.ts'
 
 type UploaderProps = {
   progress: number;
   error: string | null;
   selectedFile: File | null;
-  uploadComplete: ResponseData | null;
+  uploadComplete: UploadComplete | null;
   handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handleUpload: () => void;
-  onUploadComplete?: (file: string) => void; // Optional callback for integration
+  onUploadComplete?: (audioUrl: string) => void;
 };
 
 export default function Uploader({
@@ -31,14 +26,15 @@ export default function Uploader({
                                    onUploadComplete,
                                  }: UploaderProps) {
   useEffect(() => {
-    if (uploadComplete?.status === "complete" && uploadComplete.file) {
-      onUploadComplete?.(uploadComplete.file);
+    if (uploadComplete) {
+      onUploadComplete?.(uploadComplete.audioUrl);
     }
   }, [uploadComplete, onUploadComplete]);
 
   return (
     <div className="space-y-2">
-      <Form onSubmit={(e) => { e.preventDefault(); handleUpload(); }} className="space-y-4">
+      {/* Not a <form>: this sits inside the episode editor's form. */}
+      <div className="space-y-4">
         <Label htmlFor="audioFile">Upload Audio File</Label>
         <Input
           id="audioFile"
@@ -47,16 +43,16 @@ export default function Uploader({
           onChange={handleFileChange}
           className="w-full"
         />
-        <Button type="submit" disabled={!selectedFile}>
+        <Button type="button" disabled={!selectedFile} onClick={handleUpload}>
           Start Upload
         </Button>
-      </Form>
+      </div>
 
       {selectedFile && (
         <p className="text-sm text-gray-600">Selected: {selectedFile.name}</p>
       )}
 
-      {progress > 0 && uploadComplete?.status !== "complete" && (
+      {progress > 0 && !uploadComplete && (
         <div className="space-y-2">
           <Progress value={progress} className="w-full" />
           <p className="text-sm text-gray-600">Progress: {progress}%</p>
@@ -65,9 +61,9 @@ export default function Uploader({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {uploadComplete?.status === "complete" && (
+      {uploadComplete && (
         <div className="space-y-2">
-          <p className="text-sm text-green-600">Upload Complete: {uploadComplete.file}</p>
+          <p className="text-sm text-green-600">Upload Complete: {uploadComplete.fileName}</p>
         </div>
       )}
     </div>

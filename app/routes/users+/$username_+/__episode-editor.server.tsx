@@ -6,6 +6,7 @@ import {
 	requireEpisodeOwner,
 	requirePodcastOwner,
 } from '#app/utils/podcast-access.server.ts'
+import { describeUploadedAudio } from '#app/utils/audio-upload.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { uploadEpisodeImage } from '#app/utils/storage.server.ts'
 
@@ -67,7 +68,13 @@ export async function action({
 		publishMode,
 		episodeType,
 		image,
+		audioFile,
 	} = submission.value
+
+	// Set by the chunk uploader; size, type and duration come from the file.
+	const audio = audioFile
+		? await describeUploadedAudio(audioFile, params.podcastId)
+		: null
 
 	// Scheduled episodes are stored as published and stay out of public views
 	// until pubDate. Drafts are unpublished and never go live on their own.
@@ -85,12 +92,12 @@ export async function action({
 			pubDate: effectivePubDate,
 			explicit,
 			guid: uuidv4(),
-			duration: 0, // todo update me
+			duration: audio?.duration ?? 0,
 			episodeType,
 			link: '', // todo
-			audioUrl: '', // todo
-			audioSize: 0, // todo
-			audioType: '', // todo
+			audioUrl: audio?.audioUrl ?? '',
+			audioSize: audio?.audioSize ?? 0,
+			audioType: audio?.audioType ?? '',
 			season,
 			episode,
 			isPublished: shouldPublish,
@@ -105,6 +112,7 @@ export async function action({
 			episode,
 			isPublished: shouldPublish,
 			episodeType,
+			...(audio ?? {}),
 		},
 	})
 
